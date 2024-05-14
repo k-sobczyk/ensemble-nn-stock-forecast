@@ -1,4 +1,4 @@
-
+ 
 # Krok 1: Analiza dokumnetów.
 
 
