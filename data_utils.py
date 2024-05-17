@@ -26,13 +26,3 @@ def get_market_value(ticker, date):
     except Exception as e:
         print(f"Error fetching data for {ticker} on {date}: {e}")
         return None
-
-
-def get_possible_tickers(company_name):
-    """
-    Generates possible tickers for a company listed on GPW.
-    """
-    ticker_1 = company_name[:3].upper().replace(' ', '') + '.WA'
-    ticker_2 = ''.join([word[0] for word in company_name.split()]).upper() + '.WA'
-
-    return ticker_1, ticker_2
