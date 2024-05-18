@@ -37,7 +37,6 @@ def test_process_excel_files(folder_path):
 ```
 Output:
 
-![img_2.png](resources/img_2.png)
 
 * czasami w kolumnie z 'Sektor' wystepuje Nan ale jest go tak mało ze równie dobrze mozemy go wypełnić ręcznie
 
