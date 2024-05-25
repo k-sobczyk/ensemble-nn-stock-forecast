@@ -52,9 +52,11 @@ def reshape_data(X, y):
     return X_train, X_test, y_train, y_test
 
 
-def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=50):
+def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=50, patience=5):
     train_losses = []
     test_losses = []
+    best_test_loss = float('inf')
+    patience_counter = 0
 
     for epoch in range(epochs):
         model.train()
@@ -67,7 +69,6 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=5
             optimizer.step()
             running_loss += loss.item() * inputs.size(0)
         epoch_loss = running_loss / len(train_loader.dataset)
-
         train_losses.append(epoch_loss)
 
         model.eval()
@@ -82,8 +83,18 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=5
 
         print(f'Epoch {epoch + 1}/{epochs}, Train Loss: {epoch_loss:.4f}, Test Loss: {test_loss:.4f}')
 
-    loss_df = pd.DataFrame({'Epoch': list(range(1, epochs + 1)), 'Train Loss': train_losses, 'Test Loss': test_losses})
-    loss_df.to_csv("cnn_training_results.csv", index=False)
+        #Early stopping mechanism
+        if test_loss < best_test_loss:
+            best_test_loss = test_loss
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping triggered")
+                break
+
+    loss_df = pd.DataFrame({'Epoch': list(range(1, len(train_losses) + 1)), 'Train Loss': train_losses[:len(test_losses)], 'Test Loss': test_losses})
+    loss_df.to_csv("mini_cnn_training_results.csv", index=False)
 
 
 def evaluate_model(model, test_loader):
@@ -98,17 +109,17 @@ def evaluate_model(model, test_loader):
 
 
 def main():
-    nn_df = pd.read_csv('nn_df_scaled.csv')
-    # RMSE: 0.3634236752986908
-    # MAE: 0.07313507050275803
-    # R²: 0.8719918792273821
+    # nn_df = pd.read_csv('nn_df_scaled.csv')
+    #RMSE: 0.37572747468948364
+    #MAE: 0.08156466484069824
+    #R²: 0.8631776570559896
 
-    # mini_df = pd.read_csv('mini_df_scaled.csv')
-    # RMSE: 0.23129145801067352
-    # MAE: 0.06883080303668976
-    # R²: 0.9414394529949857
+    mini_df = pd.read_csv('mini_df_scaled.csv')
+    #RMSE: 0.25536617636680603
+    #MAE: 0.08266189694404602
+    #R²: 0.928614054627815
 
-    X, y = prepare_data(nn_df)
+    X, y = prepare_data(mini_df)
     X_train, X_test, y_train, y_test = reshape_data(X, y)
 
     train_dataset = StockDataset(X_train, y_train)
