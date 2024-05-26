@@ -49,7 +49,7 @@ def reshape_data(X, y):
     return X_train, X_test, y_train, y_test
 
 
-def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100, patience=6):
+def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100, patience=20):
     train_losses = []
     test_losses = []
     best_test_loss = float('inf')
@@ -93,7 +93,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=1
     loss_df = pd.DataFrame(
         {'Epoch': list(range(1, len(train_losses) + 1)), 'Train Loss': train_losses[:len(test_losses)],
          'Test Loss': test_losses})
-    loss_df.to_csv("lstm_training_results.csv", index=False)
+    loss_df.to_csv("mini_lstm_training_results.csv", index=False)
 
 
 def evaluate_model(model, test_loader):
@@ -109,11 +109,17 @@ def evaluate_model(model, test_loader):
 
 def main():
     set_seed(42)
-    nn_df = pd.read_csv('nn_df_scaled.csv')
+    # nn_df = pd.read_csv('nn_df_scaled.csv')
+    # RMSE: 0.2934167683124542
+    # MAE: 0.03908737748861313
+    # R²: 0.9165587083698881
 
-    # mini_df = pd.read_csv('mini_df_scaled.csv')
+    mini_df = pd.read_csv('mini_df_scaled.csv')
+    # RMSE: 0.2669451832771301
+    # MAE: 0.04278215765953064
+    # R²: 0.9219936070023995
 
-    X, y = preprocess_data(nn_df)
+    X, y = preprocess_data(mini_df)
     X_train, X_test, y_train, y_test = reshape_data(X, y)
 
     train_dataset = TensorDataset(X_train, y_train)
