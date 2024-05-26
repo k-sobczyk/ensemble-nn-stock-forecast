@@ -8,6 +8,16 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from torch.utils.data import DataLoader, TensorDataset
 
 
+def set_seed(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
         super(LSTMModel, self).__init__()
@@ -39,9 +49,11 @@ def reshape_data(X, y):
     return X_train, X_test, y_train, y_test
 
 
-def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100):
+def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100, patience=6):
     train_losses = []
     test_losses = []
+    best_test_loss = float('inf')
+    patience_counter = 0
 
     for epoch in range(epochs):
         model.train()
@@ -69,7 +81,18 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=1
 
         print(f'Epoch {epoch + 1}/{epochs}, Train Loss: {epoch_loss:.4f}, Test Loss: {test_loss:.4f}')
 
-    loss_df = pd.DataFrame({'Epoch': list(range(1, epochs + 1)), 'Train Loss': train_losses, 'Test Loss': test_losses})
+        if test_loss < best_test_loss:
+            best_test_loss = test_loss
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping triggered")
+                break
+
+    loss_df = pd.DataFrame(
+        {'Epoch': list(range(1, len(train_losses) + 1)), 'Train Loss': train_losses[:len(test_losses)],
+         'Test Loss': test_losses})
     loss_df.to_csv("lstm_training_results.csv", index=False)
 
 
@@ -85,17 +108,12 @@ def evaluate_model(model, test_loader):
 
 
 def main():
-    # nn_df = pd.read_csv('nn_df_scaled.csv')
-    # RMSE: 0.292498379945755
-    # MAE: 0.04828835651278496
-    # R²: 0.9170802291601226
+    set_seed(42)
+    nn_df = pd.read_csv('nn_df_scaled.csv')
 
-    mini_df = pd.read_csv('mini_df_scaled.csv')
-    # RMSE: 0.4334438443183899
-    # MAE: 0.059574540704488754
-    # R²: 0.7943391560714379
+    # mini_df = pd.read_csv('mini_df_scaled.csv')
 
-    X, y = preprocess_data(mini_df)
+    X, y = preprocess_data(nn_df)
     X_train, X_test, y_train, y_test = reshape_data(X, y)
 
     train_dataset = TensorDataset(X_train, y_train)
@@ -112,7 +130,7 @@ def main():
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    train_model(model, train_loader, test_loader, criterion, optimizer, epochs=50)
+    train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100)
 
     y_pred, y_true = evaluate_model(model, test_loader)
 
