@@ -114,7 +114,7 @@ def main():
     #MAE: 0.08156466484069824
     #R²: 0.8631776570559896
 
-    mini_df = pd.read_csv('mini_df_scaled.csv')
+    mini_df = pd.read_csv('model_data/mini_df_scaled.csv')
     #RMSE: 0.25536617636680603
     #MAE: 0.08266189694404602
     #R²: 0.928614054627815
