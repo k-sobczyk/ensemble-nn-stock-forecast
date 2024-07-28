@@ -1,26 +1,18 @@
+from typing import Dict, List, Optional
+
 import os
 import pandas as pd
 from tqdm import tqdm
 
 
-def count_files_in_directory(directory_path) -> int:
-    """
-    Count the number of files in the specified directory.
-
-    Args:
-    directory_path (str): Path to the directory
-
-    Returns:
-    int: Number of files
-    """
+def count_files_in_directory(directory_path: str) -> int:
+    """Count the number of files in the specified directory."""
     try:
-        # Ensure the directory exists
         if not os.path.exists(directory_path):
             print(f"The directory {directory_path} does not exist.")
             return 0
 
         count = len([f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))])
-
         return count
 
     except Exception as e:
@@ -28,18 +20,14 @@ def count_files_in_directory(directory_path) -> int:
         return 0
 
 
-# General Info Functions
-def extract_general_info(file_path):
+def extract_general_info(file_path: str) -> Optional[Dict[str, str]]:
+    """Extract general information from an Excel file."""
     try:
-        # Read the 'Info' sheet
         info_sheet = pd.read_excel(file_path, sheet_name='Info', header=None)
 
-        # Extract required information
         name = info_sheet.iloc[2, 1]  # B3
         ticker = info_sheet.iloc[12, 1]  # B13
         sector = info_sheet.iloc[20, 4]  # E21
-
-        # Get the file name
         file_name = os.path.basename(file_path)
 
         return {
@@ -53,31 +41,25 @@ def extract_general_info(file_path):
         return None
 
 
-def process_general_info(folder_path):
-    all_data = []
-
-    # Get all xlsx files in the folder
+def process_general_info(folder_path: str) -> pd.DataFrame:
+    """Process all Excel files in a folder to extract general information."""
+    all_data: List[Dict[str, str]] = []
     excel_files = [f for f in os.listdir(folder_path) if f.endswith('.xlsx')]
 
-    # Process each file with a progress bar
     for file in tqdm(excel_files, desc="Processing general info files"):
         file_path = os.path.join(folder_path, file)
         data = extract_general_info(file_path)
         if data:
             all_data.append(data)
 
-    # Create a DataFrame from all extracted data
-    df = pd.DataFrame(all_data)
-    return df
+    return pd.DataFrame(all_data)
 
 
-# Financial Details Functions
-def extract_financial_details(file_path):
+def extract_financial_details(file_path: str) -> Optional[pd.DataFrame]:
+    """Extract financial details from an Excel file."""
     try:
-        # Read the 'QS' sheet
         df = pd.read_excel(file_path, sheet_name='QS', header=None)
 
-        # Extract data for each metric
         data = {
             'date': df.iloc[0, 3:].values,
             'assets': df.iloc[12, 3:].values,
@@ -98,10 +80,7 @@ def extract_financial_details(file_path):
             'total_shares': df.iloc[18, 3:].values
         }
 
-        # Create a DataFrame
         result_df = pd.DataFrame(data)
-
-        # Add filename column
         result_df['filename'] = os.path.basename(file_path)
 
         return result_df
@@ -111,19 +90,15 @@ def extract_financial_details(file_path):
         return None
 
 
-def process_financial_details(folder_path):
-    all_data = []
-
-    # Get all xlsx files in the folder
+def process_financial_details(folder_path: str) -> pd.DataFrame:
+    """Process all Excel files in a folder to extract financial details."""
+    all_data: List[pd.DataFrame] = []
     excel_files = [f for f in os.listdir(folder_path) if f.endswith('.xlsx')]
 
-    # Process each file with a progress bar
     for file in tqdm(excel_files, desc="Processing financial details files"):
         file_path = os.path.join(folder_path, file)
         data = extract_financial_details(file_path)
         if data is not None:
             all_data.append(data)
 
-    # Concatenate all DataFrames
-    final_df = pd.concat(all_data, ignore_index=True)
-    return final_df
+    return pd.concat(all_data, ignore_index=True)
