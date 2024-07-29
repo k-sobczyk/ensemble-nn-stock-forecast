@@ -102,3 +102,47 @@ def process_financial_details(folder_path: str) -> pd.DataFrame:
             all_data.append(data)
 
     return pd.concat(all_data, ignore_index=True)
+
+
+def process_market_value_files(folder_path: str) -> pd.DataFrame:
+    """Process multiple market value .txt files and combine them into a single DataFrame."""
+    all_data = []
+
+    # Get all .txt files in the folder
+    txt_files = [f for f in os.listdir(folder_path) if f.endswith('.txt')]
+
+    # Process each file with a progress bar
+    for file in tqdm(txt_files, desc="Processing market value files"):
+        file_path = os.path.join(folder_path, file)
+
+        # Read the file
+        df = pd.read_csv(file_path,
+                         names=['TICKER', 'PER', 'DATE', 'TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE', 'VOL', 'OPENINT'])
+
+        # Convert DATE to datetime using the custom parse_date function
+        df['DATE'] = df['DATE'].apply(parse_date)
+
+        all_data.append(df)
+
+    # Combine all DataFrames
+    final_df = pd.concat(all_data, ignore_index=True)
+
+    # Sort the DataFrame by TICKER and DATE
+    final_df = final_df.sort_values(['TICKER', 'DATE'])
+
+    # Remove rows with unparseable dates
+    final_df = final_df.dropna(subset=['DATE'])
+
+    return final_df
+
+
+def parse_date(date_str):
+    """Parse date string to datetime object."""
+    try:
+        return pd.to_datetime(date_str, format='%Y%m%d')
+    except ValueError:
+        try:
+            return pd.to_datetime(date_str)
+        except ValueError:
+            print(f"Unable to parse date: {date_str}")
+            return pd.NaT
