@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 
+import glob
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -61,7 +62,7 @@ def extract_financial_details(file_path: str) -> Optional[pd.DataFrame]:
         df = pd.read_excel(file_path, sheet_name='QS', header=None)
 
         data = {
-            'date': df.iloc[0, 3:].values,
+            'date': df.iloc[3, 3:].values,
             'assets': df.iloc[12, 3:].values,
             'non_current_assets': df.iloc[13, 3:].values,
             'current_assets': df.iloc[14, 3:].values,
@@ -104,42 +105,22 @@ def process_financial_details(folder_path: str) -> pd.DataFrame:
     return pd.concat(all_data, ignore_index=True)
 
 
-def process_market_value_files(directory_path: str) -> pd.DataFrame:
+def process_stock_data(data_folder):
+    columns = ["TICKER", "PER", "DATE", "TIME", "OPEN", "HIGH", "LOW", "CLOSE", "VOL", "OPENINT"]
     all_dfs = []
-    columns = ['TICKER', 'PER', 'DATE', 'TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE', 'VOL', 'OPENINT']
-
-    # Get all .txt files in the directory
-    txt_files = [f for f in os.listdir(directory_path) if f.endswith('.txt')]
-
-    # Process each file with a progress bar
-    for filename in tqdm(txt_files, desc="Processing market value files"):
-        file_path = os.path.join(directory_path, filename)
-        try:
+    for filename in os.listdir(data_folder):
+        if filename.endswith('.txt'):
+            file_path = os.path.join(data_folder, filename)
             temp_df = pd.read_csv(file_path, delimiter=',')
+
             if temp_df.shape[1] == len(columns):
                 temp_df.columns = columns
                 all_dfs.append(temp_df)
             else:
                 print(f'File {file_path} does not match the expected number of columns.')
-        except Exception as e:
-            print(f'Error processing file {file_path}: {str(e)}')
 
-    if not all_dfs:
-        print("No valid files were processed.")
-        return pd.DataFrame()
-
-    # Combine all DataFrames
     combined_df = pd.concat(all_dfs, ignore_index=True)
 
-    # Convert DATE to datetime and format it
-    combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%Y%m%d', errors='coerce').dt.strftime('%Y-%m-%d')
-
-    # Remove rows with invalid dates
-    combined_df = combined_df.dropna(subset=['DATE'])
-
-    # Sort the DataFrame by TICKER and DATE
-    combined_df = combined_df.sort_values(['TICKER', 'DATE'])
-
-    print(f"Processed {len(all_dfs)} files. Final DataFrame shape: {combined_df.shape}")
+    combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
 
     return combined_df
