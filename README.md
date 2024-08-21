@@ -62,3 +62,57 @@ The final dataset contains 79 columns:
 These features capture both the current financial state of companies and the dynamics of their asset and capital structures over different time horizons, providing a comprehensive basis for stock price prediction.
 
 ---
+
+
+# LSTM
+
+This document outlines three Long Short-Term Memory (LSTM) neural network architectures designed for predicting stock prices based on changes in company capital and asset structure.
+The proposed models are:
+1. Basic LSTM
+```python
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.2):
+        super(LSTMModel, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size, output_size)
+```
+* The basic LSTM model serves as a foundation for time series prediction tasks.
+* It can capture long-term dependencies in sequential data, making it suitable for analyzing financial time series.
+* The addition of dropout helps prevent overfitting, which is crucial when dealing with potentially noisy financial data.
+
+
+2. Bidirectional LSTM (BiLSTM)
+```python
+class BiLSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.0):
+        super(BiLSTMModel, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size * 2, output_size)
+```
+* BiLSTM processes the input sequence in both forward and backward directions.
+* This bidirectional approach allows the model to capture both past and future context at each time step.
+* In financial markets, future stock prices can be influenced by both historical trends and future expectations, making BiLSTM particularly relevant.
+
+3. Stacked LSTM
+```python
+class StackedLSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size, dropout=0.0):
+        super(StackedLSTMModel, self).__init__()
+        self.lstm_layers = nn.ModuleList([
+            nn.LSTM(input_size if i == 0 else hidden_sizes[i-1], 
+                    hidden_sizes[i], 
+                    1, 
+                    batch_first=True, 
+                    dropout=dropout if i < len(hidden_sizes) - 1 else 0) 
+            for i in range(len(hidden_sizes))
+        ])
+        self.fc = nn.Linear(hidden_sizes[-1], output_size)
+```
+* Stacked LSTM allows for creating deeper networks with multiple LSTM layers.
+* Each layer can learn different levels of abstraction from the data.
+* In financial prediction, this can be beneficial for capturing hierarchical patterns in market behavior.
+
+# CNN
+
+
+# Transformer

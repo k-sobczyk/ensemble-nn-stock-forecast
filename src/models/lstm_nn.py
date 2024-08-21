@@ -1,11 +1,12 @@
+from model_utils import load_scale_split
+from scripts.calculate_metrics import calculate_metrics
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from torch.utils.data import DataLoader, TensorDataset
+
 
 
 def set_seed(seed):
@@ -19,25 +20,57 @@ def set_seed(seed):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.0):
         super(LSTMModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, 1)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+
         out, _ = self.lstm(x, (h0, c0))
         out = self.fc(out[:, -1, :])
         return out
 
 
-def preprocess_data(df):
-    X = df.drop('target', axis=1)
-    y = df['target']
-    return X, y
+class BiLSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.0):
+        super(BiLSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size * 2, output_size)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers * 2, x.size(0), self.hidden_size).to(x.device)
+
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
+
+
+class StackedLSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size, dropout=0.0):
+        super(StackedLSTMModel, self).__init__()
+        self.lstm_layers = nn.ModuleList([
+            nn.LSTM(input_size if i == 0 else hidden_sizes[i-1],
+                    hidden_sizes[i],
+                    1,
+                    batch_first=True,
+                    dropout=dropout if i < len(hidden_sizes) - 1 else 0)
+            for i in range(len(hidden_sizes))
+        ])
+        self.fc = nn.Linear(hidden_sizes[-1], output_size)
+
+    def forward(self, x):
+        for lstm in self.lstm_layers:
+            x, _ = lstm(x)
+        out = self.fc(x[:, -1, :])
+        return out
 
 
 def reshape_data(X, y):
@@ -108,45 +141,63 @@ def evaluate_model(model, test_loader):
 
 
 def main():
+    # Set random seed for reproducibility
     set_seed(42)
-    # nn_df = pd.read_csv('nn_df_scaled.csv')
-    # RMSE: 0.2934167683124542
-    # MAE: 0.03908737748861313
-    # R²: 0.9165587083698881
+    df = pd.read_csv('../../data/processed/model_with_features.csv')
 
-    mini_df = pd.read_csv('model_data/mini_df_scaled.csv')
-    # RMSE: 0.2669451832771301
-    # MAE: 0.04278215765953064
-    # R²: 0.9219936070023995
+    # Split the data
+    X_train, X_test, y_train, y_test = load_scale_split(df)
 
-    X, y = preprocess_data(mini_df)
-    X_train, X_test, y_train, y_test = reshape_data(X, y)
-
+    # Create DataLoader
     train_dataset = TensorDataset(X_train, y_train)
     test_dataset = TensorDataset(X_test, y_test)
-
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-    input_size = X_train.shape[2]
-    hidden_size = 50
+    # Model parameters
+    input_size = X_train.shape[2]  # Assuming X_train is of shape (samples, time_steps, features)
+    hidden_size = 64
     num_layers = 2
+    output_size = 1
+    dropout = 0.2
 
-    model = LSTMModel(input_size, hidden_size, num_layers)
+    # Initialize models
+    models = {
+        'LSTM': LSTMModel(input_size, hidden_size, num_layers, output_size, dropout),
+        'BiLSTM': BiLSTMModel(input_size, hidden_size, num_layers, output_size, dropout),
+        'StackedLSTM': StackedLSTMModel(input_size, [64, 32, 16], output_size, dropout)
+    }
+
+    # Training parameters
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    epochs = 100
+    patience = 20
 
-    train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100)
+    # Train and evaluate each model
+    for model_name, model in models.items():
+        print(f"\nTraining {model_name}...")
+        optimizer = torch.optim.Adam(model.parameters())
 
-    y_pred, y_true = evaluate_model(model, test_loader)
+        # Train the model
+        train_model(model, train_loader, test_loader, criterion, optimizer, epochs, patience)
 
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae = mean_absolute_error(y_true, y_pred)
-    r2 = r2_score(y_true, y_pred)
+        # Evaluate the model
+        predictions, actuals = evaluate_model(model, test_loader)
 
-    print(f'RMSE: {rmse}')
-    print(f'MAE: {mae}')
-    print(f'R²: {r2}')
+        # Calculate metrics
+        metrics = calculate_metrics(actuals, predictions)
+
+        # Save results
+        results_df = pd.DataFrame({
+            'Actual': actuals.flatten(),
+            'Predicted': predictions.flatten()
+        })
+        results_df.to_csv(f'results/{model_name}_predictions.csv', index=False)
+
+        # Save metrics
+        with open(f'results/{model_name}_metrics.txt', 'w') as f:
+            for metric, value in metrics.items():
+                f.write(f"{metric}: {value}\n")
 
 
 if __name__ == "__main__":

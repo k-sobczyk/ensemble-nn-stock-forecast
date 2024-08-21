@@ -125,24 +125,3 @@ def process_stock_data(data_folder):
     combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
 
     return combined_df
-
-
-def load_scale_split(csv_path, split_percentage=0.2, random_state=42):
-    # Load the data
-    df = pd.read_csv(csv_path)
-
-    # Separate features and target
-    # Assuming the last column is the target variable
-    X = df.iloc[:, :-1]
-    y = df.iloc[:, -1]
-
-    # Scale the features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Perform train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=split_percentage, random_state=random_state
-    )
-
-    return X_train, X_test, y_train, y_test
