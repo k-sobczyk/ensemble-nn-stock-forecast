@@ -1,10 +1,9 @@
-from model_utils import load_scale_split
+from model_utils import load_scale_split, preprocess_data
 from scripts.calculate_metrics import calculate_metrics
 import torch
 import torch.nn as nn
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -72,15 +71,6 @@ class StackedLSTMModel(nn.Module):
         return out
 
 
-def reshape_data(x, y):
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
-    x_train = torch.tensor(x_train.values, dtype=torch.float32).unsqueeze(1)
-    x_test = torch.tensor(x_test.values, dtype=torch.float32).unsqueeze(1)
-    y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
-    y_test = torch.tensor(y_test.values, dtype=torch.float32).unsqueeze(1)
-    return x_train, x_test, y_train, y_test
-
-
 def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100, patience=20):
     train_losses = []
     test_losses = []
@@ -142,19 +132,31 @@ def evaluate_model(model, test_loader):
 def main():
     # Set random seed for reproducibility
     set_seed(42)
+
+    # Load the data
     df = pd.read_csv('../../data/processed/model_with_features.csv')
 
     # Split the data
     X_train, X_test, y_train, y_test = load_scale_split(df)
 
+    # Preprocess the data
+    X_train = preprocess_data(X_train)
+    X_test = preprocess_data(X_test)
+
+    # Convert to tensors
+    X_train_tensor = torch.FloatTensor(X_train.values)
+    y_train_tensor = torch.FloatTensor(y_train.values.reshape(-1, 1))
+    X_test_tensor = torch.FloatTensor(X_test.values)
+    y_test_tensor = torch.FloatTensor(y_test.values.reshape(-1, 1))
+
     # Create DataLoader
-    train_dataset = TensorDataset(X_train, y_train)
-    test_dataset = TensorDataset(X_test, y_test)
+    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     # Model parameters
-    input_size = X_train.shape[2]  # Assuming X_train is of shape (samples, time_steps, features)
+    input_size = X_train.shape[1]  # Number of features
     hidden_size = 64
     num_layers = 2
     output_size = 1
