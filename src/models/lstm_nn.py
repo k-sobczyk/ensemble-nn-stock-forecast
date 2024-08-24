@@ -8,7 +8,6 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
 
-
 def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -73,13 +72,13 @@ class StackedLSTMModel(nn.Module):
         return out
 
 
-def reshape_data(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    X_train = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
-    X_test = torch.tensor(X_test.values, dtype=torch.float32).unsqueeze(1)
+def reshape_data(x, y):
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+    x_train = torch.tensor(x_train.values, dtype=torch.float32).unsqueeze(1)
+    x_test = torch.tensor(x_test.values, dtype=torch.float32).unsqueeze(1)
     y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
     y_test = torch.tensor(y_test.values, dtype=torch.float32).unsqueeze(1)
-    return X_train, X_test, y_train, y_test
+    return x_train, x_test, y_train, y_test
 
 
 def train_model(model, train_loader, test_loader, criterion, optimizer, epochs=100, patience=20):
