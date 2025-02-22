@@ -165,4 +165,3 @@ cython_debug/
 .idea/
 /model_data/
 /src/models/results/
-/src/models/results/
