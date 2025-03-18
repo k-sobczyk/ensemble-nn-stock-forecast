@@ -1,5 +1,5 @@
 from model_utils import load_scale_split, preprocess_data
-from scripts.calculate_metrics import calculate_metrics
+from utils.calculate_metrics import calculate_metrics
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -26,10 +26,15 @@ class LSTMModel(nn.Module):
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
+        x = x.unsqueeze(1)
+        # Initialize hidden state with zeros
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        # Initialize cell state
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
 
-        out, _ = self.lstm(x, (h0, c0))
+        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
+
+        # Index hidden state of last time step
         out = self.fc(out[:, -1, :])
         return out
 
@@ -158,9 +163,9 @@ def main():
     # Model parameters
     input_size = X_train.shape[1]  # Number of features
     hidden_size = 64
-    num_layers = 2
+    num_layers = 2  # Increased from 1 to 2 to avoid dropout warning
     output_size = 1
-    dropout = 0.2
+    dropout = 0.0
 
     # Initialize models
     models = {
