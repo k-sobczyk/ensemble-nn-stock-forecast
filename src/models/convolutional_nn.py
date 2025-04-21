@@ -109,15 +109,7 @@ def evaluate_model(model, test_loader):
 
 
 def main():
-    # nn_df = pd.read_csv('nn_df_scaled.csv')
-    #RMSE: 0.37572747468948364
-    #MAE: 0.08156466484069824
-    #R²: 0.8631776570559896
-
     mini_df = pd.read_csv('model_data/mini_df_scaled.csv')
-    #RMSE: 0.25536617636680603
-    #MAE: 0.08266189694404602
-    #R²: 0.928614054627815
 
     X, y = prepare_data(mini_df)
     X_train, X_test, y_train, y_test = reshape_data(X, y)
