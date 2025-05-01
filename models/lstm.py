@@ -5,13 +5,13 @@ warnings.filterwarnings("ignore")
 
 
 def main():
-    DATA_FILE = r'C:\\Users\\ksobc\\PycharmProjects\\ensemble-nn-stock-forecast\\src\\models\\model_with_features.csv'
+    DATA_FILE = r'C:\\Users\\ksobc\\PycharmProjects\\ensemble-nn-stock-forecast\\models\\model_with_features.csv'
     DATE_COLUMN = 'end_of_period'
     TARGET_COLUMN = 'target'
     TICKER_COLUMN = 'ticker'
     TEST_YEARS = [2021, 2022]
     MIN_SAMPLES_PER_COMPANY = 4
-    N_TRIALS = 50
+    N_TRIALS = 1
     OPTUNA_TIMEOUT = 3600
 
     run_lstm_model(
