@@ -11,9 +11,6 @@ class StockDatasetLSTM(Dataset):
         self.y = torch.tensor(y, dtype=torch.float32).view(-1, 1)
         self.company_ids = torch.tensor(company_ids, dtype=torch.long)
 
-    def __len__(self) -> int:
-        return len(self.X)
-
     def __getitem__(self, idx: int) -> tuple:
         return self.X[idx], self.y[idx], self.company_ids[idx]
 
@@ -42,25 +39,3 @@ class ModelLSTM(nn.Module):
 
         self.dropout = nn.Dropout(dropout_rate)
         self.fc = nn.Linear(hidden_size, 1)
-
-    def forward(self, x, company_ids=None):
-        """Forward pass with optional company embeddings."""
-        if self.use_company_embeddings and company_ids is not None:
-            embeds = self.company_embedding(company_ids)  # [batch_size, embedding_dim]
-            seq_len = x.size(1)
-            embeds = embeds.unsqueeze(1).expand(-1, seq_len, -1)  # [batch_size, seq_len, embedding_dim]
-
-            x = torch.cat([x, embeds], dim=2)  # [batch_size, seq_len, features+embedding_dim]
-
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-
-        out, _ = self.lstm(x, (h0, c0))
-        out = out[:, -1, :]  # Take the last output
-
-        if self.use_batch_norm:
-            out = self.bn(out)
-
-        out = self.dropout(out)
-        out = self.fc(out)
-        return out
