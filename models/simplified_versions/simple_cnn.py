@@ -110,17 +110,17 @@ def prepare_data_for_cnn(
     """
     # Get all columns except target and ticker for numerical features
     num_features = train_df.drop(columns=[target_column, ticker_column])
-    
+
     # One-hot encode the ticker column
     encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
     train_tickers_encoded = encoder.fit_transform(train_df[[ticker_column]])
     test_tickers_encoded = encoder.transform(test_df[[ticker_column]])
-    
+
     # Scale numerical features
     scaler_X = StandardScaler()
     X_train_num_scaled = scaler_X.fit_transform(num_features)
     X_test_num_scaled = scaler_X.transform(test_df.drop(columns=[target_column, ticker_column]))
-    
+
     # Combine numerical and one-hot features
     X_train_raw = np.hstack([X_train_num_scaled, train_tickers_encoded])
     X_test_raw = np.hstack([X_test_num_scaled, test_tickers_encoded])
