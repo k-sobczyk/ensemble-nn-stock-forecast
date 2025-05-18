@@ -1,7 +1,8 @@
 import warnings
+
 from lstm.execute import run_lstm_model
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings('ignore')
 
 
 def main():
@@ -22,9 +23,9 @@ def main():
         test_years=TEST_YEARS,
         min_samples_per_company=MIN_SAMPLES_PER_COMPANY,
         n_trials=N_TRIALS,
-        optuna_timeout=OPTUNA_TIMEOUT
+        optuna_timeout=OPTUNA_TIMEOUT,
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

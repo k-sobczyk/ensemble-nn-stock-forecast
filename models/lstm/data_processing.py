@@ -1,9 +1,11 @@
-import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 
-def load_and_split_data(file_path: str, date_column: str, test_years: list[int]) -> tuple[pd.DataFrame, pd.DataFrame, float]:
+def load_and_split_data(
+    file_path: str, date_column: str, test_years: list[int]
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
     """Loads data, splits into train/test based on years."""
     df = pd.read_csv(file_path)
     df[date_column] = pd.to_datetime(df[date_column])
@@ -19,17 +21,18 @@ def load_and_split_data(file_path: str, date_column: str, test_years: list[int])
 
     test_ratio = test_samples / total_samples * 100 if total_samples > 0 else 0
 
-    print(f"Data Split: Total: {total_samples}, Train: {train_samples}, Test: {test_samples} ({test_ratio:.2f}%)")
+    print(f'Data Split: Total: {total_samples}, Train: {train_samples}, Test: {test_samples} ({test_ratio:.2f}%)')
 
     if 'ticker' in df.columns:
-        print(f"Number of unique companies (tickers): {df['ticker'].nunique()}")
-        print(f"Train companies: {train_df['ticker'].nunique()}, Test companies: {test_df['ticker'].nunique()}")
+        print(f'Number of unique companies (tickers): {df["ticker"].nunique()}')
+        print(f'Train companies: {train_df["ticker"].nunique()}, Test companies: {test_df["ticker"].nunique()}')
 
     return train_df, test_df, test_ratio
 
 
-def prepare_base_data(train_df: pd.DataFrame, test_df: pd.DataFrame, target_column: str,
-                      ticker_column: str = 'ticker') -> tuple:
+def prepare_base_data(
+    train_df: pd.DataFrame, test_df: pd.DataFrame, target_column: str, ticker_column: str = 'ticker'
+) -> tuple:
     """Scales features and target, handles ticker information."""
     train_tickers = train_df[ticker_column].values
     test_tickers = test_df[ticker_column].values
@@ -39,13 +42,17 @@ def prepare_base_data(train_df: pd.DataFrame, test_df: pd.DataFrame, target_colu
     train_ticker_encoded = ticker_encoder.fit_transform(train_tickers)
     test_ticker_encoded = ticker_encoder.transform(test_tickers)
 
-    print(f"Encoded {len(ticker_encoder.classes_)} unique companies")
+    print(f'Encoded {len(ticker_encoder.classes_)} unique companies')
     num_companies = len(ticker_encoder.classes_)
-    numeric_cols = [col for col in train_df.columns
-                   if col != target_column and col != ticker_column and
-                   (pd.api.types.is_numeric_dtype(train_df[col]) or col.startswith('sector_'))]
+    numeric_cols = [
+        col
+        for col in train_df.columns
+        if col != target_column
+        and col != ticker_column
+        and (pd.api.types.is_numeric_dtype(train_df[col]) or col.startswith('sector_'))
+    ]
 
-    print(f"Using {len(numeric_cols)} numeric features")
+    print(f'Using {len(numeric_cols)} numeric features')
 
     X_train_raw = train_df[numeric_cols].values
     y_train_raw = train_df[target_column].values.reshape(-1, 1)
@@ -62,18 +69,32 @@ def prepare_base_data(train_df: pd.DataFrame, test_df: pd.DataFrame, target_colu
 
     num_features = X_train_scaled.shape[1]
 
-    print(f"Number of features: {num_features}")
-    print(f"Scaled Train Shapes: X={X_train_scaled.shape}, y={y_train_scaled.shape}")
-    print(f"Scaled Test Shapes: X={X_test_scaled.shape}, y={y_test_scaled.shape}")
+    print(f'Number of features: {num_features}')
+    print(f'Scaled Train Shapes: X={X_train_scaled.shape}, y={y_train_scaled.shape}')
+    print(f'Scaled Test Shapes: X={X_test_scaled.shape}, y={y_test_scaled.shape}')
 
-    return (X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled,
-            y_train_raw.flatten(), scaler_X, scaler_y, num_features,
-            train_ticker_encoded, test_ticker_encoded, num_companies)
+    return (
+        X_train_scaled,
+        X_test_scaled,
+        y_train_scaled,
+        y_test_scaled,
+        y_train_raw.flatten(),
+        scaler_X,
+        scaler_y,
+        num_features,
+        train_ticker_encoded,
+        test_ticker_encoded,
+        num_companies,
+    )
 
 
-def create_sequences_by_company(X_scaled: np.ndarray, y_scaled: np.ndarray,
-                             company_ids: np.ndarray, sequence_length: int = 2,
-                             min_samples_per_company: int = 4) -> tuple:
+def create_sequences_by_company(
+    X_scaled: np.ndarray,
+    y_scaled: np.ndarray,
+    company_ids: np.ndarray,
+    sequence_length: int = 2,
+    min_samples_per_company: int = 4,
+) -> tuple:
     """Creates sequences for LSTM input, respecting company boundaries with handling for sparse data."""
     X_seq, y_seq, company_seq = [], [], []
 
@@ -85,7 +106,9 @@ def create_sequences_by_company(X_scaled: np.ndarray, y_scaled: np.ndarray,
         company_y = y_scaled[company_mask]
 
         if len(company_X) < min_samples_per_company:
-            print(f"Company ID {company} has only {len(company_X)} samples, skipping (min required: {min_samples_per_company})")
+            print(
+                f'Company ID {company} has only {len(company_X)} samples, skipping (min required: {min_samples_per_company})'
+            )
             continue
 
         # Use shorter sequence length if needed but at least 2
@@ -93,15 +116,19 @@ def create_sequences_by_company(X_scaled: np.ndarray, y_scaled: np.ndarray,
         actual_seq_length = max(actual_seq_length, 2)  # At least 2 for minimal sequence
 
         if actual_seq_length < sequence_length:
-            print(f"Reducing sequence length to {actual_seq_length} for company ID {company} (original: {sequence_length})")
+            print(
+                f'Reducing sequence length to {actual_seq_length} for company ID {company} (original: {sequence_length})'
+            )
 
         for i in range(len(company_X) - actual_seq_length):
-            X_seq.append(company_X[i:i + actual_seq_length])
+            X_seq.append(company_X[i : i + actual_seq_length])
             y_seq.append(company_y[i + actual_seq_length])
             company_seq.append(company)
 
     if not X_seq:
-        print(f"Warning: No sequences created with sequence_length={sequence_length}. Consider reducing sequence length.")
+        print(
+            f'Warning: No sequences created with sequence_length={sequence_length}. Consider reducing sequence length.'
+        )
         num_features = X_scaled.shape[1] if X_scaled.ndim > 1 else 1
         return np.empty((0, sequence_length, num_features)), np.empty((0, 1)), np.empty((0,))
 
@@ -117,4 +144,4 @@ def create_sequences_by_company(X_scaled: np.ndarray, y_scaled: np.ndarray,
         else:
             padded_X_seq.append(seq)
 
-    return np.array(padded_X_seq), np.array(y_seq), np.array(company_seq) 
+    return np.array(padded_X_seq), np.array(y_seq), np.array(company_seq)

@@ -1,19 +1,29 @@
+import time
+
+import numpy as np
+import optuna
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-import numpy as np
-import pandas as pd
-import time
-import optuna
 from sklearn.preprocessing import StandardScaler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader
 
 
-def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoader, criterion: nn.Module,
-                optimizer: optim.Optimizer, scheduler: ReduceLROnPlateau, epochs: int = 100,
-                patience: int = 10, device: torch.device = torch.device("cpu"),
-                trial: optuna.Trial = None, verbose: bool = True) -> tuple[pd.DataFrame, nn.Module, float]:
+def train_model(
+    model: nn.Module,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    criterion: nn.Module,
+    optimizer: optim.Optimizer,
+    scheduler: ReduceLROnPlateau,
+    epochs: int = 100,
+    patience: int = 10,
+    device: torch.device = torch.device('cpu'),
+    trial: optuna.Trial = None,
+    verbose: bool = True,
+) -> tuple[pd.DataFrame, nn.Module, float]:
     """Train LSTM model with early stopping and learning rate scheduling."""
     model.to(device)
     train_losses = []
@@ -59,7 +69,9 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
         learning_rates.append(current_lr)
 
         if verbose and (epoch % 10 == 0 or epoch == epochs - 1):
-            print(f'Epoch {epoch + 1:03d}/{epochs} | Train Loss: {epoch_train_loss:.6f} | Test Loss: {epoch_test_loss:.6f} | LR: {current_lr:.6f}')
+            print(
+                f'Epoch {epoch + 1:03d}/{epochs} | Train Loss: {epoch_train_loss:.6f} | Test Loss: {epoch_test_loss:.6f} | LR: {current_lr:.6f}'
+            )
 
         scheduler.step(epoch_test_loss)
 
@@ -72,7 +84,7 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
             patience_counter += 1
             if patience_counter >= patience:
                 if verbose:
-                    print(f"Early stopping at epoch {epoch + 1}")
+                    print(f'Early stopping at epoch {epoch + 1}')
                 break
 
         if trial is not None:
@@ -82,37 +94,40 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
                 trial.report(float('inf'), epoch)
 
             if trial.should_prune():
-                print(f"Trial {trial.number} pruned at epoch {epoch+1}.")
+                print(f'Trial {trial.number} pruned at epoch {epoch + 1}.')
                 raise optuna.TrialPruned()
 
         if current_lr < 1e-7 and epoch > 10:
             if verbose:
-                print(f"Stopping early due to very small learning rate at epoch {epoch + 1}")
+                print(f'Stopping early due to very small learning rate at epoch {epoch + 1}')
             break
 
     if verbose:
         training_time = time.time() - start_time
-        print(f"Training finished in {training_time:.2f} seconds")
+        print(f'Training finished in {training_time:.2f} seconds')
 
-    loss_df = pd.DataFrame({
-        'Epoch': list(range(1, len(train_losses) + 1)),
-        'Train Loss': train_losses,
-        'Test Loss': test_losses,
-        'Learning Rate': learning_rates
-    })
+    loss_df = pd.DataFrame(
+        {
+            'Epoch': list(range(1, len(train_losses) + 1)),
+            'Train Loss': train_losses,
+            'Test Loss': test_losses,
+            'Learning Rate': learning_rates,
+        }
+    )
 
     if best_model_state:
         model.load_state_dict(best_model_state)
     else:
-        print("Warning: No best model state was saved.")
+        print('Warning: No best model state was saved.')
 
     final_best_loss = best_test_loss if np.isfinite(best_test_loss) else float('inf')
 
     return loss_df, model, final_best_loss
 
 
-def evaluate_model(model: nn.Module, test_loader: DataLoader, scaler_y: StandardScaler,
-                   device: torch.device = torch.device("cpu")) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+def evaluate_model(
+    model: nn.Module, test_loader: DataLoader, scaler_y: StandardScaler, device: torch.device = torch.device('cpu')
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     """Evaluate model on test data and return predictions, actual values, and company IDs."""
     model.eval()
     predictions_scaled = []
@@ -142,7 +157,7 @@ def evaluate_model(model: nn.Module, test_loader: DataLoader, scaler_y: Standard
         actuals_scaled = actuals_scaled.reshape(-1, 1)
 
     if predictions_scaled.shape[0] == 0 or actuals_scaled.shape[0] == 0:
-        print("Warning: Evaluating model with empty data.")
+        print('Warning: Evaluating model with empty data.')
         return np.array([]), np.array([]), company_ids_array
 
     predictions = scaler_y.inverse_transform(predictions_scaled)
