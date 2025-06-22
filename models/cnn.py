@@ -1,19 +1,20 @@
+import time
+import warnings
+
+import numpy as np
+import optuna
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from sklearn.preprocessing import StandardScaler
-import numpy as np
-import pandas as pd
-import time
-import warnings
-import optuna
 from metrics.metrics import print_metrics
+from sklearn.preprocessing import StandardScaler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader, Dataset
 
-warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in divide")
-warnings.filterwarnings("ignore", category=RuntimeWarning, message="divide by zero encountered in divide")
-warnings.filterwarnings("ignore", category=UserWarning, message="The verbose parameter is deprecated")
+warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value encountered in divide')
+warnings.filterwarnings('ignore', category=RuntimeWarning, message='divide by zero encountered in divide')
+warnings.filterwarnings('ignore', category=UserWarning, message='The verbose parameter is deprecated')
 
 
 class StockDataset(Dataset):
@@ -67,7 +68,9 @@ class ModelCNN(nn.Module):
         return x
 
 
-def load_and_split_data(file_path: str, date_column: str, test_years: list[int]) -> tuple[pd.DataFrame, pd.DataFrame, float]:
+def load_and_split_data(
+    file_path: str, date_column: str, test_years: list[int]
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
     df = pd.read_csv(file_path)
     df[date_column] = pd.to_datetime(df[date_column])
     df = df.sort_values(by=date_column)
@@ -85,12 +88,14 @@ def load_and_split_data(file_path: str, date_column: str, test_years: list[int])
 
     test_ratio = test_samples / total_samples * 100 if total_samples > 0 else 0
 
-    print(f"Data Split: Total: {total_samples}, Train: {train_samples}, Test: {test_samples} ({test_ratio:.2f}%)")
+    print(f'Data Split: Total: {total_samples}, Train: {train_samples}, Test: {test_samples} ({test_ratio:.2f}%)')
 
     return train_df, test_df, test_ratio
 
 
-def prepare_data_for_cnn(train_df: pd.DataFrame, test_df: pd.DataFrame, target_column: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler, int]:
+def prepare_data_for_cnn(
+    train_df: pd.DataFrame, test_df: pd.DataFrame, target_column: str
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler, int]:
     X_train_raw = train_df.drop(columns=[target_column]).values
     y_train_raw = train_df[target_column].values.reshape(-1, 1)
     X_test_raw = test_df.drop(columns=[target_column]).values
@@ -111,11 +116,19 @@ def prepare_data_for_cnn(train_df: pd.DataFrame, test_df: pd.DataFrame, target_c
     return X_train, X_test, y_train_scaled, y_test_scaled, y_train_raw.flatten(), scaler_y, num_features
 
 
-def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoader, criterion: nn.Module,
-                optimizer: optim.Optimizer, scheduler: ReduceLROnPlateau, epochs: int = 100,
-                patience: int = 10, device: torch.device = torch.device("cpu"),
-                trial: optuna.Trial = None, verbose: bool = True) -> tuple[pd.DataFrame, nn.Module, float]:
-
+def train_model(
+    model: nn.Module,
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    criterion: nn.Module,
+    optimizer: optim.Optimizer,
+    scheduler: ReduceLROnPlateau,
+    epochs: int = 100,
+    patience: int = 10,
+    device: torch.device = torch.device('cpu'),
+    trial: optuna.Trial = None,
+    verbose: bool = True,
+) -> tuple[pd.DataFrame, nn.Module, float]:
     model.to(device)
     train_losses = []
     test_losses = []
@@ -158,7 +171,9 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
         learning_rates.append(current_lr)
 
         if verbose and (epoch % 10 == 0 or epoch == epochs - 1):
-            print(f'Epoch {epoch + 1:03d}/{epochs} | Train Loss: {epoch_train_loss:.6f} | Test Loss: {epoch_test_loss:.6f} | LR: {current_lr:.6f}')
+            print(
+                f'Epoch {epoch + 1:03d}/{epochs} | Train Loss: {epoch_train_loss:.6f} | Test Loss: {epoch_test_loss:.6f} | LR: {current_lr:.6f}'
+            )
 
         scheduler.step(epoch_test_loss)
 
@@ -171,7 +186,7 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
             patience_counter += 1
             if patience_counter >= patience:
                 if verbose:
-                    print(f"Early stopping at epoch {epoch + 1}")
+                    print(f'Early stopping at epoch {epoch + 1}')
                 break
 
         if trial is not None:
@@ -184,14 +199,16 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
 
     if verbose:
         training_time = time.time() - start_time
-        print(f"Training finished in {training_time:.2f} seconds")
+        print(f'Training finished in {training_time:.2f} seconds')
 
-    loss_df = pd.DataFrame({
-        'Epoch': list(range(1, len(train_losses) + 1)),
-        'Train Loss': train_losses,
-        'Test Loss': test_losses,
-        'Learning Rate': learning_rates
-    })
+    loss_df = pd.DataFrame(
+        {
+            'Epoch': list(range(1, len(train_losses) + 1)),
+            'Train Loss': train_losses,
+            'Test Loss': test_losses,
+            'Learning Rate': learning_rates,
+        }
+    )
 
     if best_model_state:
         model.load_state_dict(best_model_state)
@@ -199,8 +216,9 @@ def train_model(model: nn.Module, train_loader: DataLoader, test_loader: DataLoa
     return loss_df, model, best_test_loss
 
 
-def evaluate_model(model: nn.Module, test_loader: DataLoader, scaler_y: StandardScaler,
-                  device: torch.device = torch.device("cpu")) -> tuple[np.ndarray, np.ndarray]:
+def evaluate_model(
+    model: nn.Module, test_loader: DataLoader, scaler_y: StandardScaler, device: torch.device = torch.device('cpu')
+) -> tuple[np.ndarray, np.ndarray]:
     model.eval()
     predictions_scaled = []
     actuals_scaled = []
@@ -221,14 +239,14 @@ def evaluate_model(model: nn.Module, test_loader: DataLoader, scaler_y: Standard
 
 
 def objective(trial: optuna.Trial, X_train, y_train, X_test, y_test, num_features, device) -> float:
-    lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
-    dropout_rate = trial.suggest_float("dropout_rate", 0.1, 0.6)
-    weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
-    num_filters1 = trial.suggest_categorical("num_filters1", [16, 32, 64])
-    num_filters2 = trial.suggest_categorical("num_filters2", [32, 64, 128])
-    fc1_neurons = trial.suggest_categorical("fc1_neurons", [32, 64, 128])
-    optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop"])
+    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True)
+    dropout_rate = trial.suggest_float('dropout_rate', 0.1, 0.6)
+    weight_decay = trial.suggest_float('weight_decay', 1e-6, 1e-3, log=True)
+    batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
+    num_filters1 = trial.suggest_categorical('num_filters1', [16, 32, 64])
+    num_filters2 = trial.suggest_categorical('num_filters2', [32, 64, 128])
+    fc1_neurons = trial.suggest_categorical('fc1_neurons', [32, 64, 128])
+    optimizer_name = trial.suggest_categorical('optimizer', ['Adam', 'RMSprop'])
 
     epochs = 100
     patience = 15
@@ -241,37 +259,39 @@ def objective(trial: optuna.Trial, X_train, y_train, X_test, y_test, num_feature
     # Set pin_memory to True if using CUDA
     pin_memory = True if device.type == 'cuda' else False
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                             num_workers=0, pin_memory=pin_memory)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
-                            num_workers=0, pin_memory=pin_memory)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=pin_memory)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=pin_memory)
 
     model = ModelCNN(
         num_features=num_features,
         num_filters1=num_filters1,
         num_filters2=num_filters2,
         fc1_neurons=fc1_neurons,
-        dropout_rate=dropout_rate
+        dropout_rate=dropout_rate,
     )
     criterion = nn.MSELoss()
 
-    if optimizer_name == "Adam":
+    if optimizer_name == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     else:
         optimizer = optim.RMSprop(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     scheduler = ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=lr_scheduler_factor,
-        patience=lr_scheduler_patience,
-        verbose=False,
-        min_lr=1e-7
+        optimizer, mode='min', factor=lr_scheduler_factor, patience=lr_scheduler_patience, verbose=False, min_lr=1e-7
     )
 
     _, _, best_test_loss = train_model(
-        model, train_loader, test_loader, criterion, optimizer, scheduler,
-        epochs=epochs, patience=patience, device=device, trial=trial, verbose=False
+        model,
+        train_loader,
+        test_loader,
+        criterion,
+        optimizer,
+        scheduler,
+        epochs=epochs,
+        patience=patience,
+        device=device,
+        trial=trial,
+        verbose=False,
     )
 
     return best_test_loss
@@ -287,21 +307,21 @@ def main():
     OPTUNA_TIMEOUT = 3600
 
     # Set device to CUDA if available, otherwise CPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
 
     # Print more details if CUDA is available
     if device.type == 'cuda':
-        print(f"CUDA Device: {torch.cuda.get_device_name(0)}")
-        print(f"CUDA Version: {torch.version.cuda}")
-        print(f"Available GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+        print(f'CUDA Device: {torch.cuda.get_device_name(0)}')
+        print(f'CUDA Version: {torch.version.cuda}')
+        print(f'Available GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB')
 
     train_df, test_df, test_ratio = load_and_split_data(DATA_FILE, DATE_COLUMN, TEST_YEARS)
     X_train, X_test, y_train, y_test, y_train_raw, scaler_y, num_features = prepare_data_for_cnn(
         train_df, test_df, TARGET_COLUMN
     )
 
-    print(f"\n--- Starting Optuna Hyperparameter Optimization ({N_TRIALS} trials) ---")
+    print(f'\n--- Starting Optuna Hyperparameter Optimization ({N_TRIALS} trials) ---')
     objective_wrapper = lambda trial: objective(trial, X_train, y_train, X_test, y_test, num_features, device)
 
     sampler = optuna.samplers.TPESampler(seed=42)
@@ -310,64 +330,79 @@ def main():
 
     study.optimize(objective_wrapper, n_trials=N_TRIALS, timeout=OPTUNA_TIMEOUT)
 
-    print("\n--- Optuna Optimization Finished ---")
+    print('\n--- Optuna Optimization Finished ---')
 
     if study.best_trial:
-        print(f"Number of finished trials: {len(study.trials)}")
-        print("Best trial:")
+        print(f'Number of finished trials: {len(study.trials)}')
+        print('Best trial:')
         best_trial = study.best_trial
-        print(f"  Value (Best Test Loss): {best_trial.value:.6f}")
-        print("  Best Parameters: ")
+        print(f'  Value (Best Test Loss): {best_trial.value:.6f}')
+        print('  Best Parameters: ')
         for key, value in best_trial.params.items():
-            print(f"    {key}: {value}")
+            print(f'    {key}: {value}')
 
-        print("\n--- Retraining model with best parameters ---")
+        print('\n--- Retraining model with best parameters ---')
         best_params = best_trial.params
         best_model = ModelCNN(
             num_features=num_features,
             num_filters1=best_params['num_filters1'],
             num_filters2=best_params['num_filters2'],
             fc1_neurons=best_params['fc1_neurons'],
-            dropout_rate=best_params['dropout_rate']
+            dropout_rate=best_params['dropout_rate'],
         )
         criterion = nn.MSELoss()
 
         optimizer_name = best_params['optimizer']
-        if optimizer_name == "Adam":
-            optimizer = optim.Adam(best_model.parameters(), lr=best_params['lr'], weight_decay=best_params['weight_decay'])
+        if optimizer_name == 'Adam':
+            optimizer = optim.Adam(
+                best_model.parameters(), lr=best_params['lr'], weight_decay=best_params['weight_decay']
+            )
         else:
-            optimizer = optim.RMSprop(best_model.parameters(), lr=best_params['lr'], weight_decay=best_params['weight_decay'])
+            optimizer = optim.RMSprop(
+                best_model.parameters(), lr=best_params['lr'], weight_decay=best_params['weight_decay']
+            )
 
-        print(f"Using optimizer: {optimizer_name}")
+        print(f'Using optimizer: {optimizer_name}')
 
         # Set pin_memory to True if using CUDA
         pin_memory = True if device.type == 'cuda' else False
 
         train_dataset = StockDataset(X_train, y_train)
         test_dataset = StockDataset(X_test, y_test)
-        train_loader = DataLoader(train_dataset, batch_size=best_params['batch_size'], shuffle=True,
-                                 num_workers=0, pin_memory=pin_memory)
-        test_loader = DataLoader(test_dataset, batch_size=best_params['batch_size'], shuffle=False,
-                                num_workers=0, pin_memory=pin_memory)
+        train_loader = DataLoader(
+            train_dataset, batch_size=best_params['batch_size'], shuffle=True, num_workers=0, pin_memory=pin_memory
+        )
+        test_loader = DataLoader(
+            test_dataset, batch_size=best_params['batch_size'], shuffle=False, num_workers=0, pin_memory=pin_memory
+        )
 
         final_epochs = 200
         final_patience = 20
         final_lr_patience = 8
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=final_lr_patience, verbose=True, min_lr=1e-7)
-
-        _, final_trained_model, _ = train_model(
-            best_model, train_loader, test_loader, criterion, optimizer, scheduler,
-            epochs=final_epochs, patience=final_patience, device=device
+        scheduler = ReduceLROnPlateau(
+            optimizer, mode='min', factor=0.2, patience=final_lr_patience, verbose=True, min_lr=1e-7
         )
 
-        print("\n--- Evaluating final best model ---")
+        _, final_trained_model, _ = train_model(
+            best_model,
+            train_loader,
+            test_loader,
+            criterion,
+            optimizer,
+            scheduler,
+            epochs=final_epochs,
+            patience=final_patience,
+            device=device,
+        )
+
+        print('\n--- Evaluating final best model ---')
         y_pred, y_true = evaluate_model(final_trained_model, test_loader, scaler_y, device=device)
         print_metrics(y_true, y_pred, y_train_raw)
 
         results_df = pd.DataFrame({'Actual': y_true, 'Predicted': y_pred})
-        results_df.to_csv("cnn_best_model_predictions.csv", index=False, float_format='%.4f')
-        print("\nBest model predictions saved to cnn_best_model_predictions.csv")
+        results_df.to_csv('cnn_best_model_predictions.csv', index=False, float_format='%.4f')
+        print('\nBest model predictions saved to cnn_best_model_predictions.csv')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
