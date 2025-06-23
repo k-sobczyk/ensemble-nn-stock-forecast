@@ -148,7 +148,7 @@ def feature_engineering():
     df = round_float_columns(df, decimals=2)
 
     # Move target to the end (keep original target as main target)
-    df['target'] = df.pop('target')
+    df['target_log'] = df.pop('target_log')
 
     df.to_csv('data/data_with_features.csv', index=False)
 
