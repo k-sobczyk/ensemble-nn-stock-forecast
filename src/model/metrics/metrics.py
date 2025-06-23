@@ -43,7 +43,6 @@ def print_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_train_raw: np.ndarra
         return
 
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae = mean_absolute_error(y_true, y_pred)
     r2 = r2_score(y_true, y_pred)
     r2 = max(-float('inf'), min(1.0, r2))
 
@@ -52,7 +51,6 @@ def print_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_train_raw: np.ndarra
 
     print('\n--- Evaluation Metrics ---')
     print(f'RMSE: {rmse:.4f}')
-    print(f'MAE:  {mae:.4f}')
     print(f'R²:   {r2:.4f}')
     print(f'MAPE: {mape:.2f}%' if not np.isnan(mape) else 'MAPE: N/A (Check for zeros in actuals)')
     print(f'MASE: {mase:.4f}' if not np.isnan(mase) and not np.isinf(mase) else f'MASE: N/A ({mase})')
