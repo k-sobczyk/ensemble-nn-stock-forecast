@@ -1,10 +1,10 @@
 all: format lint typecheck
 
 format:
-	ruff format models
+	ruff format src
 
 lint:
-	ruff check --fix models
+	ruff check --fix src
 
 typecheck:
 	pyright models

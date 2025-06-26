@@ -22,7 +22,9 @@ def prepare_model_datasets():
     base_columns = ['ticker', 'end_of_period', 'target_log']
 
     # ===== DATASET 1: FULL FEATURE DATASET =====
-    full_feature_cols = [col for col in df.columns if col not in ['sector', 'file_name', 'target']]  # Exclude original sector, file_name, and target
+    full_feature_cols = [
+        col for col in df.columns if col not in ['sector', 'file_name', 'target']
+    ]  # Exclude original sector, file_name, and target
     dataset_1 = df[full_feature_cols].copy()
 
     # One-hot encode sector_category for full dataset
@@ -34,21 +36,27 @@ def prepare_model_datasets():
     # ===== DATASET 2: CORE FINANCIAL STRUCTURE DATASET =====
     core_financial_cols = base_columns + [
         # Core Asset Structure
-        'total_assets', 'non_current_assets', 'current_assets',
-        'property_plant_equipment', 'intangible_assets', 'inventories',
-        'trade_receivables', 'cash_and_cash_equivalents',
-
+        'total_assets',
+        'non_current_assets',
+        'current_assets',
+        'property_plant_equipment',
+        'intangible_assets',
+        'inventories',
+        'trade_receivables',
+        'cash_and_cash_equivalents',
         # Core Capital Structure
-        'equity_shareholders_of_the_parent', 'share_capital',
-        'retained_earning_accumulated_losses', 'total_shares',
-
+        'equity_shareholders_of_the_parent',
+        'share_capital',
+        'retained_earning_accumulated_losses',
+        'total_shares',
         # Core Liability Structure
-        'non_current_liabilities', 'current_liabilities',
-        'non_current_loans_and_borrowings', 'financial_liabilities_loans_borrowings',
+        'non_current_liabilities',
+        'current_liabilities',
+        'non_current_loans_and_borrowings',
+        'financial_liabilities_loans_borrowings',
         'total_liabilities',
-
         # Sector information
-        'sector_category'
+        'sector_category',
     ]
 
     dataset_2 = df[core_financial_cols].copy()
@@ -75,11 +83,7 @@ def prepare_model_datasets():
     dataset_3.to_csv('data/datasets/dataset_3_change_focused.csv', index=False)
     print(f'Dataset 3 (Change-Focused) shape: {dataset_3.shape}')
 
-    return {
-        'full_features': dataset_1,
-        'core_financial': dataset_2,
-        'change_focused': dataset_3
-    }
+    return {'full_features': dataset_1, 'core_financial': dataset_2, 'change_focused': dataset_3}
 
 
 if __name__ == '__main__':

@@ -5,17 +5,12 @@ import pyarrow as pa
 def clean_general_company_info():
     df_general = pd.read_csv('data/processed/general_company_info.csv')
 
-    rename = {
-        'Name':      'company_name',
-        'TICKER':    'ticker',
-        'Sector':    'sector',
-        'File_Name': 'file_name'
-    }
+    rename = {'Name': 'company_name', 'TICKER': 'ticker', 'Sector': 'sector', 'File_Name': 'file_name'}
     dtypes = {
         'company_name': pd.ArrowDtype(pa.string()),
-        'ticker':       pd.ArrowDtype(pa.string()),
-        'sector':       pd.ArrowDtype(pa.string()),
-        'file_name':    pd.ArrowDtype(pa.string())
+        'ticker': pd.ArrowDtype(pa.string()),
+        'sector': pd.ArrowDtype(pa.string()),
+        'file_name': pd.ArrowDtype(pa.string()),
     }
 
     df_general = df_general.rename(columns=rename)
@@ -35,11 +30,7 @@ def clean_stooq_data():
     df_market_value = df_market_value.rename(columns=rename)
     df_market_value = df_market_value[['ticker', 'end_of_period', 'target']]
 
-    dtypes = {
-        'ticker':        pd.ArrowDtype(pa.string()),
-        'end_of_period': 'datetime64[s]',
-        'target':        'float32[pyarrow]'
-    }
+    dtypes = {'ticker': pd.ArrowDtype(pa.string()), 'end_of_period': 'datetime64[s]', 'target': 'float32[pyarrow]'}
 
     df_market_value = df_market_value.astype(dtypes)
 
@@ -49,31 +40,27 @@ def clean_stooq_data():
 def clean_detailed_company_info():
     df_detailed = pd.read_csv('data/processed/details_company_info.csv')
 
-    rename = {
-        'date':     'end_of_period',
-        'filename': 'file_name',
-        'assets':   'total_assets'
-    }
+    rename = {'date': 'end_of_period', 'filename': 'file_name', 'assets': 'total_assets'}
 
     dtypes = {
-        'end_of_period':                          'datetime64[s]',
-        'total_assets':                           'float32[pyarrow]',
-        'non_current_assets':                     'float32[pyarrow]',
-        'current_assets':                         'float32[pyarrow]',
-        'property_plant_equipment':               'float32[pyarrow]',
-        'intangible_assets':                      'float32[pyarrow]',
-        'inventories':                            'float32[pyarrow]',
-        'trade_receivables':                      'float32[pyarrow]',
-        'cash_and_cash_equivalents':              'float32[pyarrow]',
-        'equity_shareholders_of_the_parent':      'float32[pyarrow]',
-        'share_capital':                          'float32[pyarrow]',
-        'retained_earning_accumulated_losses':    'float32[pyarrow]',
-        'non_current_liabilities':                'float32[pyarrow]',
-        'current_liabilities':                    'float32[pyarrow]',
-        'non_current_loans_and_borrowings':       'float32[pyarrow]',
+        'end_of_period': 'datetime64[s]',
+        'total_assets': 'float32[pyarrow]',
+        'non_current_assets': 'float32[pyarrow]',
+        'current_assets': 'float32[pyarrow]',
+        'property_plant_equipment': 'float32[pyarrow]',
+        'intangible_assets': 'float32[pyarrow]',
+        'inventories': 'float32[pyarrow]',
+        'trade_receivables': 'float32[pyarrow]',
+        'cash_and_cash_equivalents': 'float32[pyarrow]',
+        'equity_shareholders_of_the_parent': 'float32[pyarrow]',
+        'share_capital': 'float32[pyarrow]',
+        'retained_earning_accumulated_losses': 'float32[pyarrow]',
+        'non_current_liabilities': 'float32[pyarrow]',
+        'current_liabilities': 'float32[pyarrow]',
+        'non_current_loans_and_borrowings': 'float32[pyarrow]',
         'financial_liabilities_loans_borrowings': 'float32[pyarrow]',
-        'total_shares':                           'float32[pyarrow]',
-        'file_name':                              pd.ArrowDtype(pa.string())
+        'total_shares': 'float32[pyarrow]',
+        'file_name': pd.ArrowDtype(pa.string()),
     }
 
     df_detailed = df_detailed.rename(columns=rename)
@@ -91,17 +78,15 @@ def merge_dataframes(df_detailed, df_general, df_market_value):
         market_group = df_market_value[df_market_value['ticker'] == ticker].sort_values('end_of_period')
 
         merged = pd.merge_asof(
-            group,
-            market_group,
-            on='end_of_period',
-            direction='nearest',
-            tolerance=pd.Timedelta(days=7)
+            group, market_group, on='end_of_period', direction='nearest', tolerance=pd.Timedelta(days=7)
         )
         merged_groups.append(merged)
 
     df_merged = pd.concat(merged_groups, ignore_index=True)
 
-    df_merged = df_merged.dropna(subset=['end_of_period', 'target', 'total_assets', 'current_assets', 'non_current_assets'])
+    df_merged = df_merged.dropna(
+        subset=['end_of_period', 'target', 'total_assets', 'current_assets', 'non_current_assets']
+    )
     df_merged = df_merged.fillna(0)
 
     df = df_merged.copy()
@@ -121,12 +106,13 @@ def adjust_date_columns(df):
 
     to keep the same quarters per files.
     """
-    df['end_of_period'] = df['end_of_period'].apply(lambda x: pd.Timestamp(year=x.year,
-        month=(3 if x.month in [1, 2] else
-               6 if x.month in [4, 5] else
-               9 if x.month in [7, 8] else
-               12),
-        day=1))
+    df['end_of_period'] = df['end_of_period'].apply(
+        lambda x: pd.Timestamp(
+            year=x.year,
+            month=(3 if x.month in [1, 2] else 6 if x.month in [4, 5] else 9 if x.month in [7, 8] else 12),
+            day=1,
+        )
+    )
 
     return df
 
@@ -138,13 +124,7 @@ def create_missing_quarters_report(df):
 
     # Create a pivot table with companies as rows and end_of_period as columns.
     # Using aggfunc='max' ensures that if there is at least one record for that quarter, the value is 1.
-    pivot_df = df.pivot_table(
-        index=company_id,
-        columns='end_of_period',
-        values='present',
-        aggfunc='max',
-        fill_value=0
-    )
+    pivot_df = df.pivot_table(index=company_id, columns='end_of_period', values='present', aggfunc='max', fill_value=0)
     pivot_df = pivot_df.reindex(fill_value=0)
     pivot_df = pivot_df.astype(int)
 
