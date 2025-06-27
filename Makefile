@@ -1,13 +1,10 @@
-all: format lint typecheck
+all: format lint
 
 format:
-	ruff format models
+	ruff format src
 
 lint:
-	ruff check --fix models
-
-typecheck:
-	pyright models
+	ruff check --fix src
 
 install:
 	uv sync

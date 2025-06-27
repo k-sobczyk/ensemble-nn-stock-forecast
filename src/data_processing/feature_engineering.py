@@ -28,7 +28,6 @@ def categorize_sectors(df, sector_col='sector'):
         'nowe technologie': 'Technology and Digitalization',
         'IT': 'Technology and Digitalization',
         'technologie': 'Technology and Digitalization',
-
         # Manufacturing and Industry
         'maszyny i urządzenia': 'Manufacturing and Industry',
         'urządzenia elektryczne': 'Manufacturing and Industry',
@@ -44,7 +43,6 @@ def categorize_sectors(df, sector_col='sector'):
         'recykling': 'Manufacturing and Industry',
         'przemysł': 'Manufacturing and Industry',
         'produkcja': 'Manufacturing and Industry',
-
         # Services and Trade
         'odzież i obuwie': 'Services and Trade',
         'spożywczy': 'Services and Trade',
@@ -59,7 +57,7 @@ def categorize_sectors(df, sector_col='sector'):
         'szpitale': 'Services and Trade',
         'usługi': 'Services and Trade',
         'handel detaliczny': 'Services and Trade',
-        'finanse': 'Services and Trade'
+        'finanse': 'Services and Trade',
     }
 
     df['sector_category'] = df[sector_col].map(sector_mapping).fillna('Services and Trade')
@@ -76,7 +74,9 @@ def create_financial_ratios(df):
 
     # Leverage ratios
     df_result['debt_to_assets'] = df_result['total_liabilities'] / (df_result['total_assets'] + 1e-8)
-    df_result['debt_to_equity'] = df_result['total_liabilities'] / (df_result['equity_shareholders_of_the_parent'] + 1e-8)
+    df_result['debt_to_equity'] = df_result['total_liabilities'] / (
+        df_result['equity_shareholders_of_the_parent'] + 1e-8
+    )
 
     # Asset efficiency ratios
     df_result['asset_turnover'] = df_result['target'] / (df_result['total_assets'] + 1e-8)  # Using share price as proxy
@@ -112,7 +112,7 @@ def round_float_columns(df, decimals=2):
 def feature_engineering():
     data = pd.read_csv('data/filled_data.csv')
 
-    data = (data.sort_values(by=['file_name', 'end_of_period'], ascending=False))
+    data = data.sort_values(by=['file_name', 'end_of_period'], ascending=False)
 
     if 'Unnamed: 0' in data.columns:
         data = data.drop('Unnamed: 0', axis=1)
@@ -131,12 +131,22 @@ def feature_engineering():
 
     # 5. Time-lagging of financial structure variables
     attributes = [
-        'total_assets', 'non_current_assets', 'current_assets',
-        'property_plant_equipment', 'intangible_assets', 'inventories',
-        'trade_receivables', 'cash_and_cash_equivalents', 'equity_shareholders_of_the_parent',
-        'share_capital', 'retained_earning_accumulated_losses', 'non_current_liabilities',
-        'current_liabilities', 'non_current_loans_and_borrowings', 'financial_liabilities_loans_borrowings',
-        'total_liabilities'
+        'total_assets',
+        'non_current_assets',
+        'current_assets',
+        'property_plant_equipment',
+        'intangible_assets',
+        'inventories',
+        'trade_receivables',
+        'cash_and_cash_equivalents',
+        'equity_shareholders_of_the_parent',
+        'share_capital',
+        'retained_earning_accumulated_losses',
+        'non_current_liabilities',
+        'current_liabilities',
+        'non_current_loans_and_borrowings',
+        'financial_liabilities_loans_borrowings',
+        'total_liabilities',
     ]
 
     df = calculate_financial_differences(data, attributes)

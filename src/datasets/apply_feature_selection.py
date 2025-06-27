@@ -10,7 +10,6 @@ warnings.filterwarnings('ignore')
 
 
 class FeatureSelector:
-
     def __init__(self, dataset_path='data/data_with_features.csv'):
         self.dataset_path = dataset_path
         self.df = None
@@ -61,21 +60,27 @@ class FeatureSelector:
             corr, _ = pearsonr(self.features[col], self.target)
             correlations.append(abs(corr))
 
-        results_df = pd.DataFrame({
-            'feature': self.features.columns,
-            'rf_importance': rf_importance,
-            'mutual_info': mi_scores,
-            'abs_correlation': correlations
-        })
+        results_df = pd.DataFrame(
+            {
+                'feature': self.features.columns,
+                'rf_importance': rf_importance,
+                'mutual_info': mi_scores,
+                'abs_correlation': correlations,
+            }
+        )
 
-        results_df['rf_importance_norm'] = (results_df['rf_importance'] - results_df['rf_importance'].min()) / (results_df['rf_importance'].max() - results_df['rf_importance'].min())
-        results_df['mutual_info_norm'] = (results_df['mutual_info'] - results_df['mutual_info'].min()) / (results_df['mutual_info'].max() - results_df['mutual_info'].min())
-        results_df['abs_correlation_norm'] = (results_df['abs_correlation'] - results_df['abs_correlation'].min()) / (results_df['abs_correlation'].max() - results_df['abs_correlation'].min())
+        results_df['rf_importance_norm'] = (results_df['rf_importance'] - results_df['rf_importance'].min()) / (
+            results_df['rf_importance'].max() - results_df['rf_importance'].min()
+        )
+        results_df['mutual_info_norm'] = (results_df['mutual_info'] - results_df['mutual_info'].min()) / (
+            results_df['mutual_info'].max() - results_df['mutual_info'].min()
+        )
+        results_df['abs_correlation_norm'] = (results_df['abs_correlation'] - results_df['abs_correlation'].min()) / (
+            results_df['abs_correlation'].max() - results_df['abs_correlation'].min()
+        )
 
         results_df['avg_importance'] = (
-            results_df['rf_importance_norm'] +
-            results_df['mutual_info_norm'] +
-            results_df['abs_correlation_norm']
+            results_df['rf_importance_norm'] + results_df['mutual_info_norm'] + results_df['abs_correlation_norm']
         ) / 3
 
         results_df = results_df.sort_values('avg_importance', ascending=False)
@@ -105,14 +110,14 @@ class FeatureSelector:
         print(f'Reduced dataset saved to: {output_path}')
         print(f'Original features: {self.features.shape[1]}')
         print(f'Selected features: {len(selected_features)}')
-        print(f'Reduction: {(1 - len(selected_features)/self.features.shape[1])*100:.1f}%')
+        print(f'Reduction: {(1 - len(selected_features) / self.features.shape[1]) * 100:.1f}%')
 
         return reduced_df
 
     def run_feature_selection(self, n_features=15, output_path='data/datasets/dataset_reduced_features.csv'):
-        print('='*60)
+        print('=' * 60)
         print('SIMPLE FEATURE SELECTION')
-        print('='*60)
+        print('=' * 60)
 
         self.load_data()
 
@@ -135,19 +140,18 @@ def main():
     feature_counts = [10, 15, 20]
 
     for n_features in feature_counts:
-        print(f'\n{"="*60}')
+        print(f'\n{"=" * 60}')
         print(f'CREATING DATASET WITH {n_features} FEATURES')
-        print(f'{"="*60}')
+        print(f'{"=" * 60}')
 
         output_path = f'data/datasets/dataset_{n_features}_features.csv'
         reduced_df, importance_df, selected_features = selector.run_feature_selection(
-            n_features=n_features,
-            output_path=output_path
+            n_features=n_features, output_path=output_path
         )
 
-    print(f'\n{"="*60}')
+    print(f'\n{"=" * 60}')
     print('FEATURE SELECTION COMPLETE')
-    print('='*60)
+    print('=' * 60)
     print('Created datasets:')
     for n in feature_counts:
         print(f'- data/datasets/dataset_{n}_features.csv')

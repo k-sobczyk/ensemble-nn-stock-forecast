@@ -58,10 +58,12 @@ def update_null_targets(df, df_stooq, tolerance_days=7):
 
     df_stooq_prep = df_stooq.copy()
     df_stooq_prep['DATE'] = pd.to_datetime(df_stooq_prep['DATE'])
-    df_stooq_prep = df_stooq_prep.rename(columns={
-        'TICKER': 'ticker',
-        'DATE': 'end_of_period',
-    })
+    df_stooq_prep = df_stooq_prep.rename(
+        columns={
+            'TICKER': 'ticker',
+            'DATE': 'end_of_period',
+        }
+    )
 
     null_target_rows = result_df[result_df['target'].isna()].copy()
 
@@ -89,7 +91,7 @@ def update_null_targets(df, df_stooq, tolerance_days=7):
                 by='ticker',
                 direction='nearest',
                 tolerance=pd.Timedelta(days=tolerance_days),
-                suffixes=('', '_stooq')
+                suffixes=('', '_stooq'),
             )
 
             if 'target_stooq' in merged.columns:
@@ -112,7 +114,6 @@ def update_null_targets(df, df_stooq, tolerance_days=7):
 
 
 def process_missing_data():
-
     df = pd.read_csv('data/processed/data.csv')
 
     # max number of rows that can occur: 99
@@ -133,10 +134,51 @@ def process_missing_data():
     print(f'Median entries per ticker: {ticker_counts.median():.2f}')
 
     # Drop tickers that are insufficient
-    tickers_to_drop = ['AGT', 'ANR', 'ASB', 'BBT', 'BCS', 'BCX', 'CRI', 'CRJ', 'CTS', 'CTX', 'DAD',
-                      'DNP', 'GIF', 'GOP', 'GPP', 'HLD', 'HUG', 'ICE', 'IMC', 'KDM', 'KER', 'MLK',
-                      'MLS', 'MOC', 'NNG', 'NTU', 'OND', 'PCF', 'PTG', 'PUR', 'SFG', 'SHO', 'SIM',
-                      'SLV', 'SLZ', 'SPH', 'SPR', 'STH', 'SVRS', 'TEN', 'TMR', 'TXM', 'VRC']
+    tickers_to_drop = [
+        'AGT',
+        'ANR',
+        'ASB',
+        'BBT',
+        'BCS',
+        'BCX',
+        'CRI',
+        'CRJ',
+        'CTS',
+        'CTX',
+        'DAD',
+        'DNP',
+        'GIF',
+        'GOP',
+        'GPP',
+        'HLD',
+        'HUG',
+        'ICE',
+        'IMC',
+        'KDM',
+        'KER',
+        'MLK',
+        'MLS',
+        'MOC',
+        'NNG',
+        'NTU',
+        'OND',
+        'PCF',
+        'PTG',
+        'PUR',
+        'SFG',
+        'SHO',
+        'SIM',
+        'SLV',
+        'SLZ',
+        'SPH',
+        'SPR',
+        'STH',
+        'SVRS',
+        'TEN',
+        'TMR',
+        'TXM',
+        'VRC',
+    ]
 
     df = df[~df['ticker'].isin(tickers_to_drop)]
 
@@ -164,10 +206,7 @@ def process_missing_data():
     # Initialize the MICE imputer
     # Using RandomForestRegressor as the estimator often gives good results
     mice_imputer = IterativeImputer(
-        estimator=RandomForestRegressor(n_estimators=100, random_state=42),
-        max_iter=10,
-        random_state=42,
-        verbose=2
+        estimator=RandomForestRegressor(n_estimators=100, random_state=42), max_iter=10, random_state=42, verbose=2
     )
 
     # Fit and transform the data

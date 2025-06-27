@@ -25,7 +25,7 @@ def extract_financial_details(file_path: str) -> pd.DataFrame | None:
             'current_liabilities': df.iloc[81, 3:].values,
             'non_current_loans_and_borrowings': df.iloc[72, 3:].values,
             'financial_liabilities_loans_borrowings': df.iloc[83, 3:].values,
-            'total_shares': df.iloc[18, 3:].values
+            'total_shares': df.iloc[18, 3:].values,
         }
 
         result_df = pd.DataFrame(data)
@@ -55,8 +55,11 @@ def main():
     data_folder = 'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/raw'
     df_financial_details = process_financial_details(data_folder)
     df_financial_details.dropna(subset='date', inplace=True)
-    df_financial_details.to_csv('C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/processed/details_company_info.csv', index=False)
+    df_financial_details.to_csv(
+        'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/processed/details_company_info.csv', index=False
+    )
     print(f'Processed {df_financial_details.shape[0]} records and saved to details_company_info.csv')
+
 
 if __name__ == '__main__':
     main()
