@@ -3,8 +3,6 @@ import pandas as pd
 
 
 def analyze_data_availability():
-    """Analyze data availability per ticker to determine optimal sequence length"""
-    # Load the dataset
     df = pd.read_csv('src/model/individual/dataset_1_full_features.csv')
     df['end_of_period'] = pd.to_datetime(df['end_of_period'])
     df = df.sort_values(['ticker', 'end_of_period']).reset_index(drop=True)

@@ -23,31 +23,39 @@ class StockDataset(Dataset):
         return torch.FloatTensor(self.sequences[idx]), torch.FloatTensor([self.targets[idx]])
 
 
-class SimpleGRU(nn.Module):
+class SimpleBiLSTM(nn.Module):
     def __init__(self, input_size, hidden_size=64, num_layers=2, dropout=0.2):
         super().__init__()
 
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        # GRU layer
-        self.gru = nn.GRU(
-            input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, dropout=dropout, batch_first=True
+        # Bidirectional LSTM layer
+        self.bi_lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            dropout=dropout,
+            batch_first=True,
+            bidirectional=True,  # Key difference: bidirectional processing
         )
 
         # Fully connected layers
-        self.fc = nn.Sequential(nn.Linear(hidden_size, 32), nn.ReLU(), nn.Dropout(dropout), nn.Linear(32, 1))
+        # Note: bidirectional LSTM outputs hidden_size * 2 (forward + backward)
+        self.fc = nn.Sequential(nn.Linear(hidden_size * 2, 32), nn.ReLU(), nn.Dropout(dropout), nn.Linear(32, 1))
 
     def forward(self, x):
-        # Initialize hidden state
+        # Initialize hidden state for bidirectional LSTM
         batch_size = x.size(0)
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size)
+        # For bidirectional LSTM, we need num_layers * 2 (forward + backward)
+        h0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size)
+        c0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size)
 
-        # GRU forward pass (GRU only needs hidden state, no cell state)
-        gru_out, _ = self.gru(x, h0)
+        # Bidirectional LSTM forward pass
+        lstm_out, _ = self.bi_lstm(x, (h0, c0))
 
-        # Use the last time step output
-        last_output = gru_out[:, -1, :]
+        # Use the last time step output (contains both forward and backward info)
+        last_output = lstm_out[:, -1, :]  # Shape: (batch_size, hidden_size * 2)
 
         # Pass through fully connected layers
         output = self.fc(last_output)
@@ -202,7 +210,7 @@ def prepare_data(df, sequence_length=None, test_start_year=2021, auto_sequence_l
     return X_train, y_train, X_test, y_test, scaler_X, scaler_y, feature_cols
 
 
-def train_gru_model(X_train, y_train, X_test, y_test, input_size, epochs=50, batch_size=32, learning_rate=0.001):
+def train_bi_lstm_model(X_train, y_train, X_test, y_test, input_size, epochs=50, batch_size=32, learning_rate=0.001):
     # Create datasets and dataloaders
     train_dataset = StockDataset(X_train, y_train)
     test_dataset = StockDataset(X_test, y_test)
@@ -211,7 +219,7 @@ def train_gru_model(X_train, y_train, X_test, y_test, input_size, epochs=50, bat
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize model
-    model = SimpleGRU(input_size=input_size)
+    model = SimpleBiLSTM(input_size=input_size)
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -219,7 +227,8 @@ def train_gru_model(X_train, y_train, X_test, y_test, input_size, epochs=50, bat
     train_losses = []
     test_losses = []
 
-    print('\nTraining GRU model...')
+    print('\nTraining Bidirectional LSTM model...')
+    print(f'Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
 
     for epoch in range(epochs):
         # Training phase
@@ -268,7 +277,7 @@ def evaluate_model(model, X_test, y_test, scaler_y):
     r2 = r2_score(y_test_original, predictions_original)
     rmse = np.sqrt(mse)
 
-    print('\nModel Performance:')
+    print('\nBidirectional LSTM Model Performance:')
     print(f'RMSE: {rmse:.4f}')
     print(f'MAE: {mae:.4f}')
     print(f'R² Score: {r2:.4f}')
@@ -278,8 +287,14 @@ def evaluate_model(model, X_test, y_test, scaler_y):
 
 def main(sequence_length=None, auto_sequence_length=True, epochs=50):
     print('=' * 60)
-    print('GRU Stock Price Prediction - GPW Dataset')
+    print('Bidirectional LSTM Stock Price Prediction - GPW Dataset')
     print('=' * 60)
+
+    print('\nBi-LSTM Architecture Notes:')
+    print('• Processes sequences in both forward and backward directions')
+    print('• Can capture patterns that depend on both past and future context')
+    print('• Output dimension is doubled (hidden_size * 2)')
+    print('• Generally more powerful than unidirectional LSTM')
 
     print('\nLoading dataset...')
     df = pd.read_csv('src/model/individual/dataset_1_full_features.csv')
@@ -301,7 +316,7 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=50):
     input_size = len(feature_cols)
     print(f'\nModel input size: {input_size} features')
 
-    model, train_losses, test_losses = train_gru_model(X_train, y_train, X_test, y_test, input_size, epochs=epochs)
+    model, train_losses, test_losses = train_bi_lstm_model(X_train, y_train, X_test, y_test, input_size, epochs=epochs)
 
     # Evaluate model
     results = evaluate_model(model, X_test, y_test, scaler_y)

@@ -1,6 +1,5 @@
 import warnings
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -61,39 +60,39 @@ def analyze_sequence_length_coverage(data, ticker_col, date_col, test_start_year
     # Analyze coverage for both training and test periods
     train_data = data[pd.to_datetime(data[date_col]).dt.year < test_start_year]
     test_data = data[pd.to_datetime(data[date_col]).dt.year >= test_start_year]
-    
+
     train_lengths = []
     test_lengths = []
-    
+
     for ticker in data[ticker_col].unique():
         # Training period lengths
         train_ticker_data = train_data[train_data[ticker_col] == ticker]
         if len(train_ticker_data) > 0:
             train_lengths.append(len(train_ticker_data))
-        
-        # Test period lengths  
+
+        # Test period lengths
         test_ticker_data = test_data[test_data[ticker_col] == ticker]
         if len(test_ticker_data) > 0:
             test_lengths.append(len(test_ticker_data))
 
-    print(f"Training period: {len(train_lengths)} companies")
-    print(f"Test period: {len(test_lengths)} companies")
-    print(f"Average training periods per company: {np.mean(train_lengths):.1f}")
-    print(f"Average test periods per company: {np.mean(test_lengths):.1f}")
-    
+    print(f'Training period: {len(train_lengths)} companies')
+    print(f'Test period: {len(test_lengths)} companies')
+    print(f'Average training periods per company: {np.mean(train_lengths):.1f}')
+    print(f'Average test periods per company: {np.mean(test_lengths):.1f}')
+
     sequence_coverage = {}
     for seq_len in range(1, 13):
         train_companies = sum(1 for length in train_lengths if length > seq_len)
         test_companies = sum(1 for length in test_lengths if length > seq_len)
-        
+
         train_coverage = (train_companies / len(train_lengths)) * 100 if train_lengths else 0
         test_coverage = (test_companies / len(test_lengths)) * 100 if test_lengths else 0
-        
+
         sequence_coverage[seq_len] = {
             'train_companies': train_companies,
             'test_companies': test_companies,
             'train_coverage': train_coverage,
-            'test_coverage': test_coverage
+            'test_coverage': test_coverage,
         }
 
         if seq_len <= 10:
