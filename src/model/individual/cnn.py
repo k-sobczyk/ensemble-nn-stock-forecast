@@ -4,7 +4,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from src.model.individual.model_utils import create_data_loaders, evaluate_model, prepare_data
+from src.model.individual.config import EARLY_STOPPAGE, EPOCHS
+from src.model.individual.model_utils import EarlyStopping, create_data_loaders, evaluate_model, prepare_data
 
 warnings.filterwarnings('ignore')
 
@@ -95,7 +96,16 @@ class SimpleCNN(nn.Module):
 
 
 def train_cnn_model(
-    X_train, y_train, X_test, y_test, input_size, sequence_length, epochs=50, batch_size=32, learning_rate=0.001
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    input_size,
+    sequence_length,
+    epochs=EPOCHS,
+    batch_size=32,
+    learning_rate=0.001,
+    early_stopping_patience=EARLY_STOPPAGE,
 ):
     # Create datasets and dataloaders using common utility
     train_loader, test_loader = create_data_loaders(X_train, y_train, X_test, y_test, batch_size, model_type='cnn')
@@ -105,12 +115,16 @@ def train_cnn_model(
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    # Initialize early stopping
+    early_stopping = EarlyStopping(patience=early_stopping_patience, min_delta=0.0001, restore_best_weights=True)
+
     # Training loop
     train_losses = []
     test_losses = []
 
     print('\nTraining CNN model...')
     print(f'Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
+    print(f'Early stopping patience: {early_stopping_patience} epochs')
 
     for epoch in range(epochs):
         # Training phase
@@ -141,10 +155,21 @@ def train_cnn_model(
 
         print(f'Epoch [{epoch + 1:3d}/{epochs}], Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}')
 
+        # Early stopping check
+        early_stopping(test_loss, model)
+        if early_stopping.early_stop:
+            print(f'Early stopping triggered at epoch {epoch + 1}')
+            print(f'Best validation loss: {early_stopping.best_loss:.4f}')
+            break
+
+    # Restore best model weights
+    early_stopping.restore_best_weights_to_model(model)
+    print(f'Restored best model weights (validation loss: {early_stopping.best_loss:.4f})')
+
     return model, train_losses, test_losses
 
 
-def main(sequence_length=None, auto_sequence_length=True, epochs=50):
+def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_stopping_patience=EARLY_STOPPAGE):
     print('=' * 60)
     print('CNN Stock Price Prediction - GPW Dataset')
     print('=' * 60)
@@ -182,7 +207,14 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=50):
     print(f'Sequence length: {sequence_length_used} time steps')
 
     model, train_losses, test_losses = train_cnn_model(
-        X_train, y_train, X_test, y_test, input_size, sequence_length_used, epochs=epochs
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        input_size,
+        sequence_length_used,
+        epochs=epochs,
+        early_stopping_patience=early_stopping_patience,
     )
 
     # Evaluate model using common utility
