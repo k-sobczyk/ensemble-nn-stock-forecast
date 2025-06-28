@@ -1,3 +1,4 @@
+import copy
 import warnings
 
 import numpy as np
@@ -8,6 +9,43 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, Dataset
 
 warnings.filterwarnings('ignore')
+
+
+class EarlyStopping:
+    """Early stopping to stop training when validation loss doesn't improve."""
+
+    def __init__(self, patience=7, min_delta=0, restore_best_weights=True):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.restore_best_weights = restore_best_weights
+        self.best_loss = None
+        self.counter = 0
+        self.best_weights = None
+        self.early_stop = False
+
+    def __call__(self, val_loss, model):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+            self.save_checkpoint(model)
+        elif val_loss < self.best_loss - self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+            self.save_checkpoint(model)
+        else:
+            self.counter += 1
+
+        if self.counter >= self.patience:
+            self.early_stop = True
+
+    def save_checkpoint(self, model):
+        """Save model when validation loss decrease."""
+        if self.restore_best_weights:
+            self.best_weights = copy.deepcopy(model.state_dict())
+
+    def restore_best_weights_to_model(self, model):
+        """Load the best model weights."""
+        if self.restore_best_weights and self.best_weights is not None:
+            model.load_state_dict(self.best_weights)
 
 
 class StockDataset(Dataset):
