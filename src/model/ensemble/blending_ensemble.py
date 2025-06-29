@@ -208,7 +208,6 @@ class BlendingNeuralModel(nn.Module):
 
 
 class AdaptiveBlendingEnsemble(BlendingEnsemble):
-
     def __init__(
         self, models_config=None, meta_model_type='ridge', blend_ratio=0.2, learning_rate=0.01, forgetting_factor=0.99
     ):
