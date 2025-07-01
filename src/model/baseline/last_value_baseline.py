@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 
-from src.model.baseline.baseline_utils import visualize_baseline_comparison
 from src.model.metrics.metrics import calculate_mape, calculate_mase
 
 
@@ -72,6 +71,7 @@ def last_value_baseline_evaluation(
 
             if create_visualizations:
                 try:
+                    from src.model.baseline.baseline_utils import visualize_baseline_comparison
                     visualize_baseline_comparison(ticker_data, ticker)
                 except Exception as e:
                     print(f'⚠ Warning: Could not create visualization for {ticker}: {e}')
