@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def main():
-    data_folder = 'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/stooq/historic_market_value'
+    data_folder = 'C:\Python\projects\ensemble-nn-stock-forecast\data\stooq\historic_market_value'
     columns = ['TICKER', 'PER', 'DATE', 'TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE', 'VOL', 'OPENINT']
     all_dfs = []
 
@@ -29,7 +29,7 @@ def main():
     combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%Y%m%d').dt.strftime('%Y-%m-%d')
     combined_df['target'] = (combined_df['OPEN'] + combined_df['CLOSE']) / 2
 
-    output_file_path = 'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/processed/stooq_data.csv'
+    output_file_path = 'C:\Python\projects\ensemble-nn-stock-forecast\data\processed\stooq_data.csv'
     combined_df.to_csv(output_file_path, index=False)
     print(f'Processed {combined_df.shape[0]} records and saved to stooq_data.csv')
 

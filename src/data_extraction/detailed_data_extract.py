@@ -52,11 +52,11 @@ def process_financial_details(folder_path: str) -> pd.DataFrame:
 
 
 def main():
-    data_folder = 'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/raw'
+    data_folder = 'C:\Python\projects\ensemble-nn-stock-forecast\data\\raw'
     df_financial_details = process_financial_details(data_folder)
     df_financial_details.dropna(subset='date', inplace=True)
     df_financial_details.to_csv(
-        'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/processed/details_company_info.csv', index=False
+        'C:\Python\projects\ensemble-nn-stock-forecast\data\processed\details_company_info.csv', index=False
     )
     print(f'Processed {df_financial_details.shape[0]} records and saved to details_company_info.csv')
 
