@@ -226,6 +226,8 @@ def prepare_data(df, sequence_length=None, test_start_year=2021, auto_sequence_l
 def evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='Model'):
     model.eval()
 
+    device = next(model.parameters()).device
+
     if model_type == 'cnn':
         # For CNN, use DataLoader to handle proper data transformation
         test_dataset = StockDataset(X_test, y_test, model_type='cnn')
@@ -233,15 +235,16 @@ def evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name
 
         predictions = []
         for batch_X, _ in test_loader:
+            batch_X = batch_X.to(device)
             with torch.no_grad():
-                batch_pred = model(batch_X).numpy()
+                batch_pred = model(batch_X).detach().cpu().numpy()
                 predictions.extend(batch_pred)
 
         test_predictions = np.array(predictions)
     else:
         # For RNN-based models (LSTM, GRU, Bi-LSTM)
         with torch.no_grad():
-            test_predictions = model(torch.FloatTensor(X_test)).numpy()
+            test_predictions = model(torch.FloatTensor(X_test).to(device)).detach().cpu().numpy()
 
     # Inverse transform predictions and targets
     y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()

@@ -1,3 +1,4 @@
+import os
 import warnings
 
 import pandas as pd
@@ -73,11 +74,12 @@ class Bi_LSTM(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
+        device = x.device
 
         # Initialize hidden state for bidirectional LSTM
         # For bidirectional LSTM, we need num_layers * 2 (forward + backward)
-        h0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size)
-        c0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size)
+        h0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size).to(device)
+        c0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size).to(device)
 
         # Bidirectional LSTM forward pass
         lstm_out, _ = self.bi_lstm(x, (h0, c0))
@@ -102,28 +104,38 @@ def train_bi_lstm_model(
     y_test,
     input_size,
     epochs=EPOCHS,
+    batch_size=BI_LSTM_BATCH_SIZE,
+    learning_rate=BI_LSTM_LEARNING_RATE,
     early_stopping_patience=EARLY_STOPPAGE,
+    weight_decay=BI_LSTM_WEIGHT_DECAY,
+    lr_scheduler_patience=BI_LSTM_LR_SCHEDULER_PATIENCE,
+    lr_scheduler_factor=BI_LSTM_LR_SCHEDULER_FACTOR,
+    lr_scheduler_min_lr=1e-6,
+    max_grad_norm=BI_LSTM_MAX_GRAD_NORM,
+    hidden_size=BI_LSTM_HIDDEN_SIZE,
+    num_layers=BI_LSTM_NUM_LAYERS,
+    dropout=BI_LSTM_DROPOUT,
+    device=None,
 ):
-    # Create datasets and dataloaders
-    train_loader, test_loader = create_data_loaders(
-        X_train, y_train, X_test, y_test, BI_LSTM_BATCH_SIZE, model_type='rnn'
-    )
+    # Check for CUDA availability
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Initialize model
-    model = Bi_LSTM(input_size=input_size)
+    print(f'Using device: {device}')
+
+    # Create datasets and dataloaders
+    train_loader, test_loader = create_data_loaders(X_train, y_train, X_test, y_test, batch_size, model_type='rnn')
+
+    # Initialize model and move to device
+    model = Bi_LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, dropout=dropout).to(device)
     criterion = nn.MSELoss()
 
     # Enhanced optimizer with L2 regularization
-    optimizer = torch.optim.Adam(model.parameters(), lr=BI_LSTM_LEARNING_RATE, weight_decay=BI_LSTM_WEIGHT_DECAY)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Dynamic learning rate scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=BI_LSTM_LR_SCHEDULER_FACTOR,
-        patience=BI_LSTM_LR_SCHEDULER_PATIENCE,
-        min_lr=1e-6,
-        verbose=True,
+        optimizer, mode='min', factor=lr_scheduler_factor, patience=lr_scheduler_patience, min_lr=lr_scheduler_min_lr
     )
 
     # Enhanced early stopping
@@ -133,13 +145,8 @@ def train_bi_lstm_model(
     train_losses = []
     test_losses = []
 
-    print('\nTraining Optimized Bidirectional LSTM model...')
-    print(f'Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
-    print(
-        f'Architecture: {BI_LSTM_NUM_LAYERS} layers, {BI_LSTM_HIDDEN_SIZE} hidden units, {BI_LSTM_DROPOUT:.2f} dropout'
-    )
-    print(f'Regularization: L2={BI_LSTM_WEIGHT_DECAY}, grad_clip={BI_LSTM_MAX_GRAD_NORM}')
-    print(f'LR Schedule: patience={BI_LSTM_LR_SCHEDULER_PATIENCE}, factor={BI_LSTM_LR_SCHEDULER_FACTOR}')
+    print('\nTraining Bi-LSTM model...')
+    print(f'Architecture: Hidden={hidden_size}, Layers={num_layers}, Dropout={dropout}, LR={learning_rate}')
 
     for epoch in range(epochs):
         # Training phase
@@ -147,13 +154,16 @@ def train_bi_lstm_model(
         train_loss = 0.0
 
         for batch_X, batch_y in train_loader:
+            # Move data to device
+            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+
             optimizer.zero_grad()
             outputs = model(batch_X)
             loss = criterion(outputs, batch_y)
             loss.backward()
 
             # Gradient clipping for stability
-            torch.nn.utils.clip_grad_norm_(model.parameters(), BI_LSTM_MAX_GRAD_NORM)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
 
             optimizer.step()
             train_loss += loss.item()
@@ -163,62 +173,48 @@ def train_bi_lstm_model(
         test_loss = 0.0
         with torch.no_grad():
             for batch_X, batch_y in test_loader:
+                # Move data to device
+                batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+
                 outputs = model(batch_X)
                 loss = criterion(outputs, batch_y)
                 test_loss += loss.item()
 
-        # Calculate average losses
         train_loss /= len(train_loader)
         test_loss /= len(test_loader)
 
-        # Update learning rate scheduler
-        scheduler.step(test_loss)
-        current_lr = optimizer.param_groups[0]['lr']
-
-        # Store metrics
         train_losses.append(train_loss)
         test_losses.append(test_loss)
 
+        # Get current learning rate for display
+        current_lr = optimizer.param_groups[0]['lr']
         print(
-            f'Epoch [{epoch + 1:3d}/{epochs}], Train Loss: {train_loss:.4f}, '
-            f'Test Loss: {test_loss:.4f}, LR: {current_lr:.2e}'
+            f'Epoch [{epoch + 1:3d}/{epochs}], Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}, LR: {current_lr:.6f}'
         )
+
+        # Step the learning rate scheduler
+        scheduler.step(test_loss)
 
         # Early stopping check
         early_stopping(test_loss, model)
         if early_stopping.early_stop:
-            print(f'Early stopping triggered at epoch {epoch + 1}')
-            print(f'Best validation loss: {early_stopping.best_loss:.4f}')
+            print(f'Early stopping at epoch {epoch + 1}, best loss: {early_stopping.best_loss:.4f}')
             break
 
     # Restore best model weights
     early_stopping.restore_best_weights_to_model(model)
-    print(f'Restored best model weights (validation loss: {early_stopping.best_loss:.4f})')
+    print(f'Training completed. Best validation loss: {early_stopping.best_loss:.4f}')
 
     return model, train_losses, test_losses
 
 
 def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_stopping_patience=EARLY_STOPPAGE):
-    print('=' * 80)
-    print('OPTIMIZED BIDIRECTIONAL LSTM STOCK PRICE PREDICTION - GPW DATASET')
-    print('=' * 80)
-
-    print('\n🏆 OPTIMIZED BI-LSTM ARCHITECTURE (VAL LOSS: 0.3374):')
-    print('• Bidirectional processing (forward + backward)')
-    print('• L2 regularization + enhanced dropout')
-    print('• Batch normalization + gradient clipping')
-    print('• Dynamic learning rate scheduling')
-    print('• Hyperparameters optimized with Optuna')
-
-    # Load and prepare data
-    print('\n📊 Loading dataset...')
+    print('Bi-LSTM Stock Price Prediction')
+    print('Loading dataset...')
     df = pd.read_csv('src/model/individual/dataset_1_full_features.csv')
+    print(f'Dataset: {df.shape[0]} samples, {df.shape[1]} features')
 
-    print(f'Dataset shape: {df.shape}')
-    print(f'Date range: {df["end_of_period"].min()} to {df["end_of_period"].max()}')
-    print(f'Unique companies: {df["ticker"].nunique()}')
-
-    # Prepare data
+    # Prepare data using common utility
     X_train, y_train, X_test, y_test, scaler_X, scaler_y, feature_cols = prepare_data(
         df,
         sequence_length=sequence_length,
@@ -231,20 +227,38 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_s
         print('❌ ERROR: No sequences created! Check your data and sequence length.')
         return None, None
 
+    # Get input size
     input_size = len(feature_cols)
-    print(f'\n🎯 Model input size: {input_size} features')
+    sequence_length_used = X_train.shape[1]
+    print(f'Input: {input_size} features, {sequence_length_used} time steps')
 
-    # Train with optimized parameters
-    print('\n🚀 Training with optimized parameters...')
+    # Train model with optimized parameters from config
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, train_losses, test_losses = train_bi_lstm_model(
-        X_train, y_train, X_test, y_test, input_size, epochs=epochs, early_stopping_patience=early_stopping_patience
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        input_size,
+        epochs=epochs,
+        early_stopping_patience=early_stopping_patience,
+        device=device,
     )
 
-    # Comprehensive evaluation
-    print('\n📈 FINAL MODEL EVALUATION:')
-    results = evaluate_model(
-        model, X_test, y_test, scaler_y, model_type='rnn', model_name='Optimized Bidirectional LSTM'
+    # Save loss plot
+    os.makedirs('src/model/individual/results/bi_lstm_results', exist_ok=True)
+    from src.model.individual.run_all_models import plot_and_save_loss, save_individual_model_results
+
+    plot_and_save_loss(
+        train_losses, test_losses, 'src/model/individual/results/bi_lstm_results/bi_lstm_loss.png', 'Bi-LSTM'
     )
+
+    # Final evaluation
+    print('\nFinal evaluation:')
+    results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='Bi-LSTM')
+
+    # Save comprehensive results including MAPE, MASE, and training data
+    save_individual_model_results('Bi-LSTM', results, train_losses, test_losses, 'src/model/individual/results')
 
     return model, results
 

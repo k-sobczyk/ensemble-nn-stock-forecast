@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error
 
 
 def calculate_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -28,30 +28,3 @@ def calculate_mase(y_true: np.ndarray, y_pred: np.ndarray, y_train: np.ndarray) 
         return np.inf if mae > 0 else 0.0
 
     return mae / naive_forecast_error
-
-
-def print_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_train_raw: np.ndarray):
-    """Calculates and prints RMSE, MAE, R2, MAPE, MASE."""
-    if y_true.size == 0 or y_pred.size == 0:
-        print('\nEvaluation Metrics: Cannot calculate metrics - No prediction data available.')
-        return
-
-    if y_true.size != y_pred.size:
-        print(
-            f'\nError: Mismatch in size of y_true ({y_true.size}) and y_pred ({y_pred.size}). Cannot calculate metrics.'
-        )
-        return
-
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    r2 = r2_score(y_true, y_pred)
-    r2 = max(-float('inf'), min(1.0, r2))
-
-    mape = calculate_mape(y_true, y_pred)
-    mase = calculate_mase(y_true, y_pred, y_train_raw)
-
-    print('\n--- Evaluation Metrics ---')
-    print(f'RMSE: {rmse:.4f}')
-    print(f'R²:   {r2:.4f}')
-    print(f'MAPE: {mape:.2f}%' if not np.isnan(mape) else 'MAPE: N/A (Check for zeros in actuals)')
-    print(f'MASE: {mase:.4f}' if not np.isnan(mase) and not np.isinf(mase) else f'MASE: N/A ({mase})')
-    print('--------------------------')

@@ -72,6 +72,7 @@ def last_value_baseline_evaluation(
             if create_visualizations:
                 try:
                     from src.model.baseline.baseline_utils import visualize_baseline_comparison
+
                     visualize_baseline_comparison(ticker_data, ticker)
                 except Exception as e:
                     print(f'⚠ Warning: Could not create visualization for {ticker}: {e}')

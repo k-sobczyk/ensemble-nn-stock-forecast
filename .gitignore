@@ -169,7 +169,7 @@ cython_debug/
 *.pth
 *.txt
 *.png
-
+*.json
 
 # Project specific
 model_prompt.md

@@ -1,3 +1,4 @@
+import os
 import warnings
 
 import pandas as pd
@@ -42,6 +43,19 @@ class GRU(nn.Module):
             nn.Linear(hidden_size, 32), nn.BatchNorm1d(32), nn.ReLU(), nn.Dropout(dropout), nn.Linear(32, 1)
         )
 
+        # Initialize weights properly
+        self._init_weights()
+
+    def _init_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.BatchNorm1d):
+                nn.init.constant_(module.weight, 1)
+                nn.init.constant_(module.bias, 0)
+
     def forward(self, x):
         # Initialize hidden state on the same device as input
         batch_size = x.size(0)
@@ -81,15 +95,12 @@ def train_gru_model(
     hidden_size=GRU_HIDDEN_SIZE,
     num_layers=GRU_NUM_LAYERS,
     dropout=GRU_DROPOUT,
+    device=None,
 ):
     # Check for CUDA availability
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
-    if device.type == 'cuda':
-        print(f'GPU: {torch.cuda.get_device_name(0)}')
-        print('Memory Usage:')
-        print(f'  Allocated: {torch.cuda.memory_allocated(0) / 1024**3:.1f} GB')
-        print(f'  Reserved:  {torch.cuda.memory_reserved(0) / 1024**3:.1f} GB')
 
     # Create datasets and dataloaders using common utility
     train_loader, test_loader = create_data_loaders(X_train, y_train, X_test, y_test, batch_size, model_type='rnn')
@@ -103,12 +114,7 @@ def train_gru_model(
 
     # Add ReduceLROnPlateau scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=lr_scheduler_factor,
-        patience=lr_scheduler_patience,
-        min_lr=lr_scheduler_min_lr,
-        verbose=True,
+        optimizer, mode='min', factor=lr_scheduler_factor, patience=lr_scheduler_patience, min_lr=lr_scheduler_min_lr
     )
 
     # Initialize early stopping
@@ -119,15 +125,7 @@ def train_gru_model(
     test_losses = []
 
     print('\nTraining GRU model...')
-    print(f'Device: {device}')
-    print(f'Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
-    print(f'Architecture: Hidden={hidden_size}, Layers={num_layers}, Dropout={dropout}')
-    print(f'Initial learning rate: {learning_rate}')
-    print(f'Batch size: {batch_size}')
-    print(f'L2 regularization (weight_decay): {weight_decay}')
-    print(f'Gradient clipping max norm: {max_grad_norm}')
-    print(f'LR scheduler patience: {lr_scheduler_patience} epochs')
-    print(f'Early stopping patience: {early_stopping_patience} epochs')
+    print(f'Architecture: Hidden={hidden_size}, Layers={num_layers}, Dropout={dropout}, LR={learning_rate}')
 
     for epoch in range(epochs):
         # Training phase
@@ -178,22 +176,12 @@ def train_gru_model(
         # Early stopping check
         early_stopping(test_loss, model)
         if early_stopping.early_stop:
-            print(f'Early stopping triggered at epoch {epoch + 1}')
-            print(f'Best validation loss: {early_stopping.best_loss:.4f}')
-            print(f'Final learning rate: {current_lr:.6f}')
+            print(f'Early stopping at epoch {epoch + 1}, best loss: {early_stopping.best_loss:.4f}')
             break
 
     # Restore best model weights
     early_stopping.restore_best_weights_to_model(model)
-    final_lr = optimizer.param_groups[0]['lr']
-    print(f'Restored best model weights (validation loss: {early_stopping.best_loss:.4f})')
-    print(f'Training completed with final learning rate: {final_lr:.6f}')
-
-    # Show final GPU memory usage if using CUDA
-    if device.type == 'cuda':
-        print('Final GPU Memory Usage:')
-        print(f'  Allocated: {torch.cuda.memory_allocated(0) / 1024**3:.1f} GB')
-        print(f'  Reserved:  {torch.cuda.memory_reserved(0) / 1024**3:.1f} GB')
+    print(f'Training completed. Best validation loss: {early_stopping.best_loss:.4f}')
 
     return model, train_losses, test_losses
 
@@ -204,17 +192,10 @@ def main(
     epochs=EPOCHS,
     early_stopping_patience=EARLY_STOPPAGE,
 ):
-    print('=' * 60)
-    print('GRU Stock Price Prediction - GPW Dataset')
-    print('Using Optimized Hyperparameters')
-    print('=' * 60)
-
-    print('\nLoading dataset...')
+    print('GRU Stock Price Prediction')
+    print('Loading dataset...')
     df = pd.read_csv('src/model/individual/dataset_1_full_features.csv')
-
-    print(f'Dataset shape: {df.shape}')
-    print(f'Date range: {df["end_of_period"].min()} to {df["end_of_period"].max()}')
-    print(f'Unique companies: {df["ticker"].nunique()}')
+    print(f'Dataset: {df.shape[0]} samples, {df.shape[1]} features')
 
     # Prepare data using common utility
     X_train, y_train, X_test, y_test, scaler_X, scaler_y, feature_cols = prepare_data(
@@ -226,25 +207,16 @@ def main(
     )
 
     if X_train.shape[0] == 0 or X_test.shape[0] == 0:
-        print('ERROR: No sequences created! Check your data and sequence length.')
+        print('❌ ERROR: No sequences created! Check your data and sequence length.')
         return None, None
 
     # Get input size
     input_size = len(feature_cols)
-    print(f'\nModel input size: {input_size} features')
-
-    print('\nOptimized Hyperparameters:')
-    print(f'  Hidden Size: {GRU_HIDDEN_SIZE}')
-    print(f'  Num Layers: {GRU_NUM_LAYERS}')
-    print(f'  Dropout: {GRU_DROPOUT}')
-    print(f'  Learning Rate: {GRU_LEARNING_RATE}')
-    print(f'  Weight Decay: {GRU_WEIGHT_DECAY}')
-    print(f'  Batch Size: {GRU_BATCH_SIZE}')
-    print(f'  LR Scheduler Patience: {GRU_LR_SCHEDULER_PATIENCE}')
-    print(f'  LR Scheduler Factor: {GRU_LR_SCHEDULER_FACTOR}')
-    print(f'  Max Grad Norm: {GRU_MAX_GRAD_NORM}')
+    sequence_length_used = X_train.shape[1]
+    print(f'Input: {input_size} features, {sequence_length_used} time steps')
 
     # Train model with optimized parameters from config
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, train_losses, test_losses = train_gru_model(
         X_train,
         y_train,
@@ -253,10 +225,21 @@ def main(
         input_size,
         epochs=epochs,
         early_stopping_patience=early_stopping_patience,
+        device=device,
     )
 
-    # Evaluate model using common utility
-    results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='GRU Model')
+    # Save loss plot
+    os.makedirs('src/model/individual/results/gru_results', exist_ok=True)
+    from src.model.individual.run_all_models import plot_and_save_loss, save_individual_model_results
+
+    plot_and_save_loss(train_losses, test_losses, 'src/model/individual/results/gru_results/gru_loss.png', 'GRU')
+
+    # Final evaluation
+    print('\nFinal evaluation:')
+    results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='GRU')
+
+    # Save comprehensive results including MAPE, MASE, and training data
+    save_individual_model_results('GRU', results, train_losses, test_losses, 'src/model/individual/results')
 
     return model, results
 
