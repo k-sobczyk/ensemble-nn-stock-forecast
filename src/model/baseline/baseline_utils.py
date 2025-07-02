@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 
-from src.model.baseline.arima_baseline import predict_arima_for_ticker
 from src.model.baseline.last_value_baseline import predict_last_value_for_ticker
 from src.model.metrics.metrics import calculate_mape, calculate_mase
 
@@ -14,6 +13,8 @@ def visualize_baseline_comparison(
     ticker_data, ticker, test_start_date='2021-01-01', save_dir='src/model/baseline/visualization_images'
 ):
     """Create visualization comparing ARIMA and Last Value baselines for a ticker."""
+    from src.model.baseline.arima_baseline import predict_arima_for_ticker
+
     # Create directory if it doesn't exist
     os.makedirs(save_dir, exist_ok=True)
 

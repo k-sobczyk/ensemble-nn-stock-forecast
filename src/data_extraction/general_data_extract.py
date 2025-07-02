@@ -41,11 +41,11 @@ def update_sector(row):
 
 
 def main():
-    data_folder = 'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/raw'
+    data_folder = 'C:\Python\projects\ensemble-nn-stock-forecast\data\\raw'
     df_general_info = process_general_info(data_folder)
     df_general_info['Sector'] = df_general_info.apply(update_sector, axis=1)
     df_general_info.to_csv(
-        'C:/Users/ksobc/PycharmProjects/ensemble-nn-stock-forecast/data/processed/general_company_info.csv', index=False
+        'C:\Python\projects\ensemble-nn-stock-forecast\data\processed\general_company_info.csv', index=False
     )
     print(f'Processed {df_general_info.shape[0]} records and saved to general_company_info.csv')
 
