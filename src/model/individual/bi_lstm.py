@@ -246,11 +246,11 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_s
     )
 
     # Save loss plot
-    os.makedirs('src/model/individual/results/bi_lstm_results', exist_ok=True)
-    from src.model.individual.run_all_models import plot_and_save_loss, save_individual_model_results
+    os.makedirs('src/model/individual/output/bi_lstm_results', exist_ok=True)
+    from src.model.individual.model_utils import plot_and_save_loss, save_individual_model_results
 
     plot_and_save_loss(
-        train_losses, test_losses, 'src/model/individual/results/bi_lstm_results/bi_lstm_loss.png', 'Bi-LSTM'
+        train_losses, test_losses, 'src/model/individual/output/bi_lstm_results/bi_lstm_loss.png', 'Bi-LSTM'
     )
 
     # Final evaluation
@@ -258,7 +258,7 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_s
     results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='Bi-LSTM')
 
     # Save comprehensive results including MAPE, MASE, and training data
-    save_individual_model_results('Bi-LSTM', results, train_losses, test_losses, 'src/model/individual/results')
+    save_individual_model_results('Bi-LSTM', results, train_losses, test_losses, 'src/model/individual/output')
 
     return model, results
 

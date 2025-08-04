@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from scipy import stats
 
 from src.model.individual.bi_lstm import main as bi_lstm_main
 from src.model.individual.cnn import main as cnn_main
@@ -17,8 +18,8 @@ from src.model.individual.gru import main as gru_main
 # Import individual models
 from src.model.individual.lstm import main as lstm_main
 
-# Import metrics
-from src.model.metrics.metrics import calculate_mape, calculate_mase
+# Import utilities
+from src.model.individual.model_utils import calculate_additional_metrics
 
 warnings.filterwarnings('ignore')
 
@@ -31,114 +32,6 @@ def set_seed(seed=42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-def plot_and_save_loss(train_losses, test_losses, out_path, model_name='Model'):
-    """Create and save training loss plot for any model."""
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label='Train Loss')
-    plt.plot(test_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title(f'{model_name} Training and Validation Loss')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-
-def calculate_additional_metrics(actual, predicted):
-    """Calculate MAPE and MASE metrics using standardized functions."""
-    # MAPE - Mean Absolute Percentage Error
-    try:
-        mape = calculate_mape(actual, predicted)
-    except Exception as e:
-        print(f'Warning: Could not calculate MAPE: {e}')
-        mape = np.nan
-
-    # MASE - Mean Absolute Scaled Error
-    # For MASE, we use actual values as training data for naive forecast
-    try:
-        mase = calculate_mase(actual, predicted, actual)
-    except Exception as e:
-        print(f'Warning: Could not calculate MASE: {e}')
-        mase = np.nan
-
-    return mape, mase
-
-
-def save_individual_model_results(
-    model_name, results, train_losses, test_losses, results_dir, save_detailed_plots=False
-):
-    """Save individual model results including metrics and loss data."""
-    model_dir = os.path.join(results_dir, f'{model_name.lower()}_results')
-    os.makedirs(model_dir, exist_ok=True)
-
-    # Calculate additional metrics
-    actual = results['actual']
-    predicted = results['predictions']
-    mape, mase = calculate_additional_metrics(actual, predicted)
-
-    # Create comprehensive results dictionary
-    comprehensive_results = {
-        'model_name': model_name,
-        'metrics': {
-            'rmse': float(results['rmse']),
-            'mae': float(results['mae']),
-            'r2': float(results['r2']),
-            'mape': float(mape),
-            'mase': float(mase),
-        },
-        'training_data': {
-            'train_losses': [float(loss) for loss in train_losses],
-            'validation_losses': [float(loss) for loss in test_losses],
-            'total_epochs': len(train_losses),
-            'best_train_loss': float(min(train_losses)) if train_losses else 0,
-            'best_validation_loss': float(min(test_losses)) if test_losses else 0,
-        },
-        'predictions': {'actual_values': [float(x) for x in actual], 'predicted_values': [float(x) for x in predicted]},
-    }
-
-    # Always save basic results
-    # Save comprehensive results to JSON
-    with open(os.path.join(model_dir, f'{model_name.lower()}_detailed_results.json'), 'w') as f:
-        json.dump(comprehensive_results, f, indent=2)
-
-    # Save metrics to CSV
-    metrics_df = pd.DataFrame([comprehensive_results['metrics']])
-    metrics_df.to_csv(os.path.join(model_dir, f'{model_name.lower()}_metrics.csv'), index=False)
-
-    # Only save detailed plots and CSVs for the best model
-    if save_detailed_plots:
-        print(f'🏆 Saving detailed visualizations for BEST MODEL: {model_name}')
-
-        # Save loss data to CSV
-        if train_losses and test_losses:
-            loss_df = pd.DataFrame(
-                {'epoch': range(1, len(train_losses) + 1), 'train_loss': train_losses, 'validation_loss': test_losses}
-            )
-            loss_df.to_csv(os.path.join(model_dir, f'{model_name.lower()}_losses.csv'), index=False)
-
-        # Save predictions to CSV
-        pred_df = pd.DataFrame(
-            {
-                'actual': actual,
-                'predicted': predicted,
-                'residual': actual - predicted,
-                'abs_error': np.abs(actual - predicted),
-                'percentage_error': np.abs((actual - predicted) / actual) * 100,
-            }
-        )
-        pred_df.to_csv(os.path.join(model_dir, f'{model_name.lower()}_predictions.csv'), index=False)
-
-        # Create detailed prediction scatter plot
-        create_detailed_prediction_plot(actual, predicted, model_name, model_dir)
-
-        # Create residuals analysis plot
-        create_residuals_plot(actual, predicted, model_name, model_dir)
-
-    return comprehensive_results
 
 
 def determine_best_model(model_summaries):
@@ -226,8 +119,6 @@ def create_residuals_plot(actual, predicted, model_name, output_dir):
     axes[0, 1].grid(True, alpha=0.3)
 
     # Q-Q plot (approximate)
-    from scipy import stats
-
     stats.probplot(residuals, dist='norm', plot=axes[1, 0])
     axes[1, 0].set_title('Q-Q Plot (Normal Distribution)')
     axes[1, 0].grid(True, alpha=0.3)
@@ -268,7 +159,7 @@ def run_all_models(
     print('=' * 80)
 
     # Create results directory
-    results_dir = 'src/model/individual/results'
+    results_dir = 'src/model/individual/output'
     os.makedirs(results_dir, exist_ok=True)
 
     # Define models to run

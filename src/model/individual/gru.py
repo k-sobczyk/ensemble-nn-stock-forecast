@@ -229,17 +229,17 @@ def main(
     )
 
     # Save loss plot
-    os.makedirs('src/model/individual/results/gru_results', exist_ok=True)
-    from src.model.individual.run_all_models import plot_and_save_loss, save_individual_model_results
+    os.makedirs('src/model/individual/output/gru_results', exist_ok=True)
+    from src.model.individual.model_utils import plot_and_save_loss, save_individual_model_results
 
-    plot_and_save_loss(train_losses, test_losses, 'src/model/individual/results/gru_results/gru_loss.png', 'GRU')
+    plot_and_save_loss(train_losses, test_losses, 'src/model/individual/output/gru_results/gru_loss.png', 'GRU')
 
     # Final evaluation
     print('\nFinal evaluation:')
     results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='GRU')
 
     # Save comprehensive results including MAPE, MASE, and training data
-    save_individual_model_results('GRU', results, train_losses, test_losses, 'src/model/individual/results')
+    save_individual_model_results('GRU', results, train_losses, test_losses, 'src/model/individual/output')
 
     return model, results
 
