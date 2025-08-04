@@ -1,7 +1,15 @@
 import numpy as np
 import pandas as pd
 
-from src.model.metrics.metrics import calculate_mae, calculate_mape, calculate_mase, calculate_r2, calculate_rmse
+from src.model.metrics.metrics import (
+    calculate_mae,
+    calculate_mape,
+    calculate_mape_log_scale,
+    calculate_mase,
+    calculate_r2,
+    calculate_rmse,
+    calculate_symmetric_mape,
+)
 
 
 def predict_last_value_for_ticker(ticker_data, test_start_date='2021-01-01'):
@@ -52,6 +60,8 @@ def last_value_baseline_evaluation(
             rmse = calculate_rmse(y_true, y_pred)
             mae = calculate_mae(y_true, y_pred)
             mape = calculate_mape(y_true, y_pred)
+            smape = calculate_symmetric_mape(y_true, y_pred)
+            mape_log = calculate_mape_log_scale(y_true, y_pred)
             mase = calculate_mase(y_true, y_pred, y_train)
             r2 = calculate_r2(y_true, y_pred)
 
@@ -61,6 +71,8 @@ def last_value_baseline_evaluation(
                     'rmse': rmse,
                     'mae': mae,
                     'mape': mape,
+                    'smape': smape,
+                    'mape_log': mape_log,
                     'mase': mase,
                     'r2': r2,
                     'n_test_samples': len(y_true),
@@ -71,14 +83,14 @@ def last_value_baseline_evaluation(
 
             successful_tickers.append(ticker)
             print(
-                f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAE: {mae:.4f}, MAPE: {mape:.2f}%, MASE: {mase:.4f}, R2: {r2:.4f}'
+                f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAE: {mae:.4f}, MAPE: {mape:.2f}%, SMAPE: {smape:.2f}%, MAPE_Log: {mape_log:.2f}%, MASE: {mase:.4f}, R2: {r2:.4f}'
             )
 
             if create_visualizations:
                 try:
-                    from src.model.baseline.baseline_utils import visualize_baseline_comparison
+                    from src.model.baseline.baseline_utils import visualize_last_value_baseline
 
-                    visualize_baseline_comparison(ticker_data, ticker)
+                    visualize_last_value_baseline(ticker_data, ticker)
                 except Exception as e:
                     print(f'⚠ Warning: Could not create visualization for {ticker}: {e}')
 

@@ -7,20 +7,17 @@ import pandas as pd
 from src.model.baseline.last_value_baseline import predict_last_value_for_ticker
 
 
-def visualize_baseline_comparison(
+def visualize_last_value_baseline(
     ticker_data, ticker, test_start_date='2021-01-01', save_dir='src/model/baseline/output/visualizations'
 ):
-    """Create professional visualization comparing ARIMA and Last Value baselines for thesis presentation."""
-    from src.model.baseline.arima_baseline import predict_arima_for_ticker
-
+    """Create professional visualization for Last Value baseline for thesis presentation."""
     # Create directory if it doesn't exist
     os.makedirs(save_dir, exist_ok=True)
 
-    # Get predictions from both methods
-    y_true_arima, y_pred_arima, y_train_arima = predict_arima_for_ticker(ticker_data, test_start_date)
+    # Get predictions from Last Value method
     y_true_last, y_pred_last, y_train_last = predict_last_value_for_ticker(ticker_data, test_start_date)
 
-    if y_true_arima is None or y_true_last is None:
+    if y_true_last is None:
         print(f'Skipping visualization for {ticker} - insufficient data')
         return
 
@@ -55,18 +52,17 @@ def visualize_baseline_comparison(
     colors = {
         'training': '#2E86C1',  # Professional blue
         'actual': '#1B2631',  # Dark charcoal
-        'arima': '#E74C3C',  # Professional red
         'last_value': '#F39C12',  # Professional orange
         'split': '#85929E',  # Subtle gray
     }
 
     # Plot training data with subtle styling
-    ax.plot(train_dates, y_train_arima, label='Historical Data', color=colors['training'], linewidth=2.5, alpha=0.8)
+    ax.plot(train_dates, y_train_last, label='Historical Data', color=colors['training'], linewidth=2.5, alpha=0.8)
 
     # Plot actual test values with emphasis
     ax.plot(
         test_dates,
-        y_true_arima,
+        y_true_last,
         label='Actual Values',
         color=colors['actual'],
         linewidth=3,
@@ -77,20 +73,6 @@ def visualize_baseline_comparison(
         markeredgecolor=colors['actual'],
     )
 
-    # Plot ARIMA predictions
-    ax.plot(
-        test_dates,
-        y_pred_arima,
-        label='ARIMA Forecast',
-        color=colors['arima'],
-        linewidth=2.5,
-        linestyle='--',
-        marker='s',
-        markersize=4,
-        markerfacecolor=colors['arima'],
-        alpha=0.9,
-    )
-
     # Plot Last Value predictions
     ax.plot(
         test_dates,
@@ -98,7 +80,7 @@ def visualize_baseline_comparison(
         label='Last Value Forecast',
         color=colors['last_value'],
         linewidth=2.5,
-        linestyle=':',
+        linestyle='--',
         marker='^',
         markersize=4,
         markerfacecolor=colors['last_value'],
@@ -153,7 +135,7 @@ def visualize_baseline_comparison(
     plt.tight_layout(pad=2.0)
 
     # Save with high quality for thesis
-    filename = f'{ticker}_baseline_comparison.png'
+    filename = f'{ticker}_last_value_baseline.png'
     filepath = os.path.join(save_dir, filename)
     plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none', format='png')
     plt.close()
@@ -164,11 +146,11 @@ def visualize_baseline_comparison(
     print(f'✓ Professional visualization saved: {filepath}')
 
 
-def save_best_worst_performers(results_df, model_name, base_save_dir='src/model/baseline/output'):
+def save_best_worst_performers(results_df, base_save_dir='src/model/baseline/output'):
     """Save best and worst performing ticker results and visualizations to separate folders."""
     # Create directories for best and worst performers
-    best_dir = os.path.join(base_save_dir, f'best_performers_{model_name}')
-    worst_dir = os.path.join(base_save_dir, f'worst_performers_{model_name}')
+    best_dir = os.path.join(base_save_dir, 'best_performers_last_value')
+    worst_dir = os.path.join(base_save_dir, 'worst_performers_last_value')
 
     os.makedirs(best_dir, exist_ok=True)
     os.makedirs(worst_dir, exist_ok=True)
@@ -184,27 +166,22 @@ def save_best_worst_performers(results_df, model_name, base_save_dir='src/model/
     best_result = results_df.loc[best_idx:best_idx]
     worst_result = results_df.loc[worst_idx:worst_idx]
 
-    best_result.to_csv(os.path.join(best_dir, f'best_performer_{model_name}.csv'), index=False)
-    worst_result.to_csv(os.path.join(worst_dir, f'worst_performer_{model_name}.csv'), index=False)
+    best_result.to_csv(os.path.join(best_dir, 'best_performer_last_value.csv'), index=False)
+    worst_result.to_csv(os.path.join(worst_dir, 'worst_performer_last_value.csv'), index=False)
 
     # Copy visualization images if they exist
     viz_source_dir = os.path.join(base_save_dir, 'visualizations')
 
-    if model_name == 'linear_regression':
-        viz_pattern = 'linear_regression_comparison'
-    else:
-        viz_pattern = 'baseline_comparison'
-
     # Look for visualization files
     if os.path.exists(viz_source_dir):
         for filename in os.listdir(viz_source_dir):
-            if best_ticker in filename and viz_pattern in filename:
+            if best_ticker in filename and 'last_value_baseline' in filename:
                 src_path = os.path.join(viz_source_dir, filename)
                 dst_path = os.path.join(best_dir, filename)
                 shutil.copy2(src_path, dst_path)
                 print(f'✓ Copied best performer visualization: {dst_path}')
 
-            if worst_ticker in filename and viz_pattern in filename:
+            if worst_ticker in filename and 'last_value_baseline' in filename:
                 src_path = os.path.join(viz_source_dir, filename)
                 dst_path = os.path.join(worst_dir, filename)
                 shutil.copy2(src_path, dst_path)
