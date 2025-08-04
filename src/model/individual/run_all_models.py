@@ -136,6 +136,310 @@ def create_residuals_plot(actual, predicted, model_name, output_dir):
     plt.close()
 
 
+def create_individual_loss_plot(train_losses, validation_losses, model_name, output_dir, color):
+    """Create detailed training and validation loss plot for an individual model with baseline styling."""
+    # Set professional styling (matching baseline style)
+    plt.style.use('default')
+    plt.rcParams.update(
+        {
+            'font.size': 12,
+            'font.family': 'serif',
+            'axes.linewidth': 1.2,
+            'axes.edgecolor': '#333333',
+            'axes.labelcolor': '#333333',
+            'xtick.color': '#333333',
+            'ytick.color': '#333333',
+            'grid.alpha': 0.3,
+            'grid.linewidth': 0.8,
+        }
+    )
+
+    # Create the plot with professional dimensions
+    fig, ax = plt.subplots(figsize=(14, 8), facecolor='white')
+    ax.set_facecolor('#fafafa')
+
+    # Professional color palette (matching baseline)
+    colors = {
+        'training': '#2E86C1',  # Professional blue
+        'validation': '#E74C3C',  # Professional red
+        'best_marker': '#F39C12',  # Professional orange
+        'best_line': '#85929E',  # Subtle gray
+    }
+
+    epochs = range(1, len(train_losses) + 1)
+
+    # Plot training loss with professional styling
+    ax.plot(
+        epochs,
+        train_losses,
+        color=colors['training'],
+        linewidth=2.5,
+        label='Training Loss',
+        alpha=0.8,
+        marker='o',
+        markersize=3,
+        markerfacecolor=colors['training'],
+        markevery=max(1, len(epochs) // 20),
+    )  # Show markers sparsely
+
+    # Plot validation loss with professional styling
+    ax.plot(
+        epochs,
+        validation_losses,
+        color=colors['validation'],
+        linewidth=2.5,
+        linestyle='--',
+        label='Validation Loss',
+        alpha=0.9,
+        marker='s',
+        markersize=3,
+        markerfacecolor=colors['validation'],
+        markevery=max(1, len(epochs) // 20),
+    )  # Show markers sparsely
+
+    # Find best validation loss epoch
+    best_val_epoch = np.argmin(validation_losses) + 1
+    best_val_loss = min(validation_losses)
+
+    # Mark best validation loss with professional styling
+    ax.axvline(
+        x=best_val_epoch,
+        color=colors['best_line'],
+        linestyle='-',
+        alpha=0.7,
+        linewidth=2,
+        label='Best Validation Epoch',
+    )
+    ax.plot(
+        best_val_epoch,
+        best_val_loss,
+        color=colors['best_marker'],
+        marker='^',
+        markersize=8,
+        markerfacecolor=colors['best_marker'],
+        markeredgewidth=2,
+        markeredgecolor='white',
+        label=f'Best Validation (Epoch {best_val_epoch})',
+    )
+
+    # Clean, professional title
+    ax.set_title(f'{model_name} Training History', fontsize=18, fontweight='bold', color='#1B2631', pad=20)
+
+    # Professional axis labels
+    ax.set_xlabel('Epoch', fontsize=14, fontweight='medium', color='#333333')
+    ax.set_ylabel('Loss', fontsize=14, fontweight='medium', color='#333333')
+
+    # Professional legend (matching baseline style)
+    legend = ax.legend(
+        fontsize=11,
+        loc='upper right',
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.95,
+        edgecolor='#dddddd',
+        facecolor='white',
+    )
+    legend.get_frame().set_linewidth(1)
+
+    # Professional grid
+    ax.grid(True, alpha=0.3, linewidth=0.8, color='#cccccc')
+    ax.set_axisbelow(True)
+
+    # Format axes professionally
+    ax.tick_params(axis='x', labelsize=11)
+    ax.tick_params(axis='y', labelsize=11)
+
+    # Remove top and right spines for cleaner look
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#cccccc')
+    ax.spines['bottom'].set_color('#cccccc')
+
+    # Add statistics text with professional styling
+    final_train_loss = train_losses[-1]
+    final_val_loss = validation_losses[-1]
+    best_train_loss = min(train_losses)
+
+    stats_text = f'Final Train Loss: {final_train_loss:.6f}\n'
+    stats_text += f'Final Val Loss: {final_val_loss:.6f}\n'
+    stats_text += f'Best Train Loss: {best_train_loss:.6f}\n'
+    stats_text += f'Best Val Loss: {best_val_loss:.6f}\n'
+    stats_text += f'Total Epochs: {len(train_losses)}'
+
+    ax.text(
+        0.02,
+        0.98,
+        stats_text,
+        transform=ax.transAxes,
+        verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor='white', alpha=0.95, edgecolor='#dddddd'),
+        fontsize=10,
+        color='#333333',
+    )
+
+    # Tight layout with padding
+    plt.tight_layout(pad=2.0)
+
+    # Save with high quality for thesis (matching baseline)
+    filepath = os.path.join(output_dir, f'{model_name.lower()}_training_history.png')
+    plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none', format='png')
+    plt.close()
+
+    # Reset style to default
+    plt.rcParams.update(plt.rcParamsDefault)
+
+
+def create_combined_loss_comparison_plot(all_results, output_dir):
+    """Create a combined plot comparing training histories of all models with baseline styling."""
+    valid_models = {
+        name: data
+        for name, data in all_results.items()
+        if 'results' in data and 'train_losses' in data['results'] and 'validation_losses' in data['results']
+    }
+
+    if len(valid_models) == 0:
+        print('⚠️ No training loss data available for combined loss plot')
+        return
+
+    # Set professional styling (matching baseline style)
+    plt.style.use('default')
+    plt.rcParams.update(
+        {
+            'font.size': 12,
+            'font.family': 'serif',
+            'axes.linewidth': 1.2,
+            'axes.edgecolor': '#333333',
+            'axes.labelcolor': '#333333',
+            'xtick.color': '#333333',
+            'ytick.color': '#333333',
+            'grid.alpha': 0.3,
+            'grid.linewidth': 0.8,
+        }
+    )
+
+    # Create the plot with professional dimensions
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8), facecolor='white')
+    ax1.set_facecolor('#fafafa')
+    ax2.set_facecolor('#fafafa')
+
+    # Professional color palette for each model (matching baseline colors)
+    model_colors = {
+        'lstm': '#2E86C1',  # Professional blue
+        'gru': '#E74C3C',  # Professional red
+        'bi-lstm': '#F39C12',  # Professional orange
+        'cnn': '#27AE60',  # Professional green
+    }
+
+    # Plot training and validation losses
+    for model_name, model_data in valid_models.items():
+        results = model_data['results']
+        train_losses = results['train_losses']
+        validation_losses = results['validation_losses']
+
+        epochs = range(1, len(train_losses) + 1)
+        color = model_colors.get(model_name.lower(), '#1B2631')
+
+        # Training losses subplot with professional styling
+        ax1.plot(
+            epochs,
+            train_losses,
+            color=color,
+            linewidth=2.5,
+            label=f'{model_name.upper()}',
+            alpha=0.8,
+            marker='o',
+            markersize=3,
+            markerfacecolor=color,
+            markevery=max(1, len(epochs) // 20),
+        )
+
+        # Validation losses subplot with professional styling
+        ax2.plot(
+            epochs,
+            validation_losses,
+            color=color,
+            linewidth=2.5,
+            linestyle='--',
+            label=f'{model_name.upper()}',
+            alpha=0.9,
+            marker='s',
+            markersize=3,
+            markerfacecolor=color,
+            markevery=max(1, len(epochs) // 20),
+        )
+
+    # Configure training losses subplot with professional styling
+    ax1.set_xlabel('Epoch', fontsize=14, fontweight='medium', color='#333333')
+    ax1.set_ylabel('Training Loss', fontsize=14, fontweight='medium', color='#333333')
+    ax1.set_title('Training Loss Comparison', fontsize=16, fontweight='bold', color='#1B2631', pad=15)
+
+    # Professional legend for training subplot
+    legend1 = ax1.legend(
+        fontsize=11,
+        loc='upper right',
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.95,
+        edgecolor='#dddddd',
+        facecolor='white',
+    )
+    legend1.get_frame().set_linewidth(1)
+
+    # Professional grid and spines for training subplot
+    ax1.grid(True, alpha=0.3, linewidth=0.8, color='#cccccc')
+    ax1.set_axisbelow(True)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['left'].set_color('#cccccc')
+    ax1.spines['bottom'].set_color('#cccccc')
+    ax1.tick_params(axis='x', labelsize=11)
+    ax1.tick_params(axis='y', labelsize=11)
+
+    # Configure validation losses subplot with professional styling
+    ax2.set_xlabel('Epoch', fontsize=14, fontweight='medium', color='#333333')
+    ax2.set_ylabel('Validation Loss', fontsize=14, fontweight='medium', color='#333333')
+    ax2.set_title('Validation Loss Comparison', fontsize=16, fontweight='bold', color='#1B2631', pad=15)
+
+    # Professional legend for validation subplot
+    legend2 = ax2.legend(
+        fontsize=11,
+        loc='upper right',
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.95,
+        edgecolor='#dddddd',
+        facecolor='white',
+    )
+    legend2.get_frame().set_linewidth(1)
+
+    # Professional grid and spines for validation subplot
+    ax2.grid(True, alpha=0.3, linewidth=0.8, color='#cccccc')
+    ax2.set_axisbelow(True)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['left'].set_color('#cccccc')
+    ax2.spines['bottom'].set_color('#cccccc')
+    ax2.tick_params(axis='x', labelsize=11)
+    ax2.tick_params(axis='y', labelsize=11)
+
+    # Professional main title
+    fig.suptitle('Neural Network Training History Comparison', fontsize=18, fontweight='bold', color='#1B2631', y=0.98)
+
+    # Tight layout with padding
+    plt.tight_layout(pad=2.0)
+
+    # Save with high quality for thesis (matching baseline)
+    filepath = os.path.join(output_dir, 'combined_training_history.png')
+    plt.savefig(filepath, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none', format='png')
+    plt.close()
+
+    # Reset style to default
+    plt.rcParams.update(plt.rcParamsDefault)
+
+
 def run_all_models(
     sequence_length=None,
     auto_sequence_length=True,
@@ -198,7 +502,7 @@ def run_all_models(
                 # Calculate additional metrics
                 actual = results['actual']
                 predicted = results['predictions']
-                mape, mase = calculate_additional_metrics(actual, predicted)
+                mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted)
 
                 # Store results
                 all_results[model_name.lower()] = {
@@ -208,9 +512,20 @@ def run_all_models(
                     'timestamp': datetime.now().isoformat(),
                     'mape': mape,
                     'mase': mase,
+                    'smape': smape,
+                    'mape_log': mape_log,
                 }
 
-                # Note: Individual model results with training losses are saved by each model's main() function
+                # Create individual training history plot if loss data is available
+                if 'train_losses' in results and 'validation_losses' in results:
+                    print(f'📊 Creating detailed training history plot for {model_name}...')
+                    create_individual_loss_plot(
+                        results['train_losses'],
+                        results['validation_losses'],
+                        model_name,
+                        results_dir,
+                        model_config['color'],
+                    )
 
                 # Create summary for comparison
                 model_summaries.append(
@@ -220,6 +535,8 @@ def run_all_models(
                         'MAE': results['mae'],
                         'R²': results['r2'],
                         'MAPE': mape,
+                        'SMAPE': smape,
+                        'MAPE_Log': mape_log,
                         'MASE': mase,
                         'Training Time (min)': training_time / 60,
                         'Color': model_config['color'],
@@ -230,7 +547,9 @@ def run_all_models(
                 print(f'   RMSE: {results["rmse"]:.4f}')
                 print(f'   MAE: {results["mae"]:.4f}')
                 print(f'   R²: {results["r2"]:.4f}')
-                print(f'   MAPE: {mape:.4f}%' if not np.isnan(mape) else '   MAPE: N/A')
+                print(f'   MAPE: {mape:.2f}%' if not np.isnan(mape) else '   MAPE: N/A')
+                print(f'   SMAPE: {smape:.2f}%' if not np.isnan(smape) else '   SMAPE: N/A')
+                print(f'   MAPE_Log: {mape_log:.2f}%' if not np.isnan(mape_log) else '   MAPE_Log: N/A')
                 print(f'   MASE: {mase:.4f}' if not np.isnan(mase) else '   MASE: N/A')
                 print(f'   Training Time: {training_time / 60:.2f} minutes')
 
@@ -243,6 +562,8 @@ def run_all_models(
                         'MAE': np.nan,
                         'R²': np.nan,
                         'MAPE': np.nan,
+                        'SMAPE': np.nan,
+                        'MAPE_Log': np.nan,
                         'MASE': np.nan,
                         'Training Time (min)': training_time / 60,
                         'Color': model_config['color'],
@@ -260,6 +581,8 @@ def run_all_models(
                     'MAE': np.nan,
                     'R²': np.nan,
                     'MAPE': np.nan,
+                    'SMAPE': np.nan,
+                    'MAPE_Log': np.nan,
                     'MASE': np.nan,
                     'Training Time (min)': training_time / 60,
                     'Color': model_config['color'],
@@ -307,6 +630,9 @@ def save_comparison_results(model_summaries, all_results, results_dir):
     # Create predictions comparison plot
     create_predictions_comparison_plot(all_results, comparison_dir)
 
+    # Create combined training history comparison plot
+    create_combined_loss_comparison_plot(all_results, comparison_dir)
+
     # Save detailed results to JSON
     save_detailed_results_json(all_results, model_summaries, comparison_dir)
 
@@ -314,6 +640,9 @@ def save_comparison_results(model_summaries, all_results, results_dir):
     df_summary.drop('Color', axis=1).to_csv(os.path.join(comparison_dir, 'model_summary.csv'), index=False)
 
     print(f'📊 Comparison results saved to: {comparison_dir}')
+    print('📈 Training history plots:')
+    print(f'   - Individual model plots: {results_dir}/*_training_history.png')
+    print(f'   - Combined comparison plot: {comparison_dir}/combined_training_history.png')
 
 
 def create_performance_comparison_plots(df_valid, output_dir):
@@ -513,3 +842,4 @@ if __name__ == '__main__':
     )
 
     print('\n🎉 All models completed! Check the results folder for detailed output.')
+    print('📊 New detailed training history plots have been created for each model!')

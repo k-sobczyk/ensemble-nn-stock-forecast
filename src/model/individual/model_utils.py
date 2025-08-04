@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, Dataset
 
 # Import metrics
-from src.model.metrics.metrics import calculate_mape, calculate_mase
+from src.model.metrics.metrics import calculate_mape, calculate_mape_log_scale, calculate_mase, calculate_symmetric_mape
 
 warnings.filterwarnings('ignore')
 
@@ -297,12 +297,26 @@ def plot_and_save_loss(train_losses, test_losses, out_path, model_name='Model'):
 
 def calculate_additional_metrics(actual, predicted):
     """Calculate MAPE and MASE metrics using standardized functions."""
-    # MAPE - Mean Absolute Percentage Error
+    # MAPE - Mean Absolute Percentage Error (traditional)
     try:
         mape = calculate_mape(actual, predicted)
     except Exception as e:
         print(f'Warning: Could not calculate MAPE: {e}')
         mape = np.nan
+
+    # Symmetric MAPE - More robust for stock prices
+    try:
+        smape = calculate_symmetric_mape(actual, predicted)
+    except Exception as e:
+        print(f'Warning: Could not calculate Symmetric MAPE: {e}')
+        smape = np.nan
+
+    # MAPE on log scale - More appropriate for log-transformed data
+    try:
+        mape_log = calculate_mape_log_scale(actual, predicted)
+    except Exception as e:
+        print(f'Warning: Could not calculate Log-scale MAPE: {e}')
+        mape_log = np.nan
 
     # MASE - Mean Absolute Scaled Error
     # For MASE, we use actual values as training data for naive forecast
@@ -312,7 +326,7 @@ def calculate_additional_metrics(actual, predicted):
         print(f'Warning: Could not calculate MASE: {e}')
         mase = np.nan
 
-    return mape, mase
+    return mape, mase, smape, mape_log
 
 
 def save_individual_model_results(
@@ -325,7 +339,7 @@ def save_individual_model_results(
     # Calculate additional metrics
     actual = results['actual']
     predicted = results['predictions']
-    mape, mase = calculate_additional_metrics(actual, predicted)
+    mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted)
 
     # Create comprehensive results dictionary
     comprehensive_results = {
@@ -335,6 +349,8 @@ def save_individual_model_results(
             'mae': float(results['mae']),
             'r2': float(results['r2']),
             'mape': float(mape),
+            'smape': float(smape),
+            'mape_log': float(mape_log),
             'mase': float(mase),
         },
         'training_data': {

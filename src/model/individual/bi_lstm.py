@@ -257,6 +257,10 @@ def main(sequence_length=None, auto_sequence_length=True, epochs=EPOCHS, early_s
     print('\nFinal evaluation:')
     results = evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name='Bi-LSTM')
 
+    # Add training losses to results for use by run_all_models.py
+    results['train_losses'] = train_losses
+    results['validation_losses'] = test_losses
+
     # Save comprehensive results including MAPE, MASE, and training data
     save_individual_model_results('Bi-LSTM', results, train_losses, test_losses, 'src/model/individual/output')
 
