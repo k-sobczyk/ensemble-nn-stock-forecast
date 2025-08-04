@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +11,7 @@ from src.model.metrics.metrics import calculate_mape, calculate_mase
 
 
 def visualize_baseline_comparison(
-    ticker_data, ticker, test_start_date='2021-01-01', save_dir='src/model/baseline/visualization_images'
+    ticker_data, ticker, test_start_date='2021-01-01', save_dir='src/model/baseline/output/visualizations'
 ):
     """Create visualization comparing ARIMA and Last Value baselines for a ticker."""
     from src.model.baseline.arima_baseline import predict_arima_for_ticker
@@ -100,3 +101,55 @@ def visualize_baseline_comparison(
     plt.close()
 
     print(f'✓ Visualization saved: {filepath}')
+
+
+def save_best_worst_performers(results_df, model_name, base_save_dir='src/model/baseline/output'):
+    """Save best and worst performing ticker results and visualizations to separate folders."""
+    # Create directories for best and worst performers
+    best_dir = os.path.join(base_save_dir, f'best_performers_{model_name}')
+    worst_dir = os.path.join(base_save_dir, f'worst_performers_{model_name}')
+
+    os.makedirs(best_dir, exist_ok=True)
+    os.makedirs(worst_dir, exist_ok=True)
+
+    # Find best and worst performers by RMSE
+    best_idx = results_df['rmse'].idxmin()
+    worst_idx = results_df['rmse'].idxmax()
+
+    best_ticker = results_df.loc[best_idx, 'ticker']
+    worst_ticker = results_df.loc[worst_idx, 'ticker']
+
+    # Save detailed results
+    best_result = results_df.loc[best_idx:best_idx]
+    worst_result = results_df.loc[worst_idx:worst_idx]
+
+    best_result.to_csv(os.path.join(best_dir, f'best_performer_{model_name}.csv'), index=False)
+    worst_result.to_csv(os.path.join(worst_dir, f'worst_performer_{model_name}.csv'), index=False)
+
+    # Copy visualization images if they exist
+    viz_source_dir = os.path.join(base_save_dir, 'visualizations')
+
+    if model_name == 'linear_regression':
+        viz_pattern = 'linear_regression_comparison'
+    else:
+        viz_pattern = 'baseline_comparison'
+
+    # Look for visualization files
+    if os.path.exists(viz_source_dir):
+        for filename in os.listdir(viz_source_dir):
+            if best_ticker in filename and viz_pattern in filename:
+                src_path = os.path.join(viz_source_dir, filename)
+                dst_path = os.path.join(best_dir, filename)
+                shutil.copy2(src_path, dst_path)
+                print(f'✓ Copied best performer visualization: {dst_path}')
+
+            if worst_ticker in filename and viz_pattern in filename:
+                src_path = os.path.join(viz_source_dir, filename)
+                dst_path = os.path.join(worst_dir, filename)
+                shutil.copy2(src_path, dst_path)
+                print(f'✓ Copied worst performer visualization: {dst_path}')
+
+    print(f'✓ Best performer ({best_ticker}) saved to: {best_dir}')
+    print(f'✓ Worst performer ({worst_ticker}) saved to: {worst_dir}')
+
+    return best_ticker, worst_ticker, best_dir, worst_dir

@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error
 
-from src.model.metrics.metrics import calculate_mape, calculate_mase
+from src.model.metrics.metrics import calculate_mae, calculate_mape, calculate_mase, calculate_r2, calculate_rmse
 
 
 def predict_last_value_for_ticker(ticker_data, test_start_date='2021-01-01'):
@@ -50,16 +49,20 @@ def last_value_baseline_evaluation(
         y_true, y_pred, y_train = predict_last_value_for_ticker(ticker_data)
 
         if y_true is not None:
-            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+            rmse = calculate_rmse(y_true, y_pred)
+            mae = calculate_mae(y_true, y_pred)
             mape = calculate_mape(y_true, y_pred)
             mase = calculate_mase(y_true, y_pred, y_train)
+            r2 = calculate_r2(y_true, y_pred)
 
             all_results.append(
                 {
                     'ticker': ticker,
                     'rmse': rmse,
+                    'mae': mae,
                     'mape': mape,
                     'mase': mase,
+                    'r2': r2,
                     'n_test_samples': len(y_true),
                     'last_train_value': y_train[-1] if len(y_train) > 0 else np.nan,
                     'avg_test_value': np.mean(y_true),
@@ -67,7 +70,9 @@ def last_value_baseline_evaluation(
             )
 
             successful_tickers.append(ticker)
-            print(f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAPE: {mape:.2f}%, MASE: {mase:.4f}')
+            print(
+                f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAE: {mae:.4f}, MAPE: {mape:.2f}%, MASE: {mase:.4f}, R2: {r2:.4f}'
+            )
 
             if create_visualizations:
                 try:
@@ -91,8 +96,10 @@ def last_value_baseline_evaluation(
 
         print('\nAVERAGE METRICS ACROSS ALL TICKERS:')
         print(f'RMSE: {results_df["rmse"].mean():.4f} ± {results_df["rmse"].std():.4f}')
+        print(f'MAE: {results_df["mae"].mean():.4f} ± {results_df["mae"].std():.4f}')
         print(f'MAPE: {results_df["mape"].mean():.2f}% ± {results_df["mape"].std():.2f}%')
         print(f'MASE: {results_df["mase"].mean():.4f} ± {results_df["mase"].std():.4f}')
+        print(f'R2: {results_df["r2"].mean():.4f} ± {results_df["r2"].std():.4f}')
 
         print('\nADDITIONAL INSIGHTS:')
         print(f'Average last training value: {results_df["last_train_value"].mean():.2f}')
@@ -101,11 +108,26 @@ def last_value_baseline_evaluation(
             f'Correlation between last train and avg test: {results_df["last_train_value"].corr(results_df["avg_test_value"]):.4f}'
         )
 
-        results_df.to_csv('last_value_baseline_detailed_results.csv', index=False)
-        print('\nDetailed results saved to: last_value_baseline_detailed_results.csv')
+        # Save to output directory
+        import os
+
+        output_dir = 'src/model/baseline/output'
+        os.makedirs(output_dir, exist_ok=True)
+
+        results_path = os.path.join(output_dir, 'last_value_baseline_detailed_results.csv')
+        results_df.to_csv(results_path, index=False)
+        print(f'\nDetailed results saved to: {results_path}')
 
         if create_visualizations:
-            print('Visualizations saved to: src/model/baseline/visualization_images/')
+            print('Visualizations saved to: src/model/baseline/output/visualizations/')
+
+        # Save best and worst performers
+        from src.model.baseline.baseline_utils import save_best_worst_performers
+
+        try:
+            save_best_worst_performers(results_df, 'last_value')
+        except Exception as e:
+            print(f'⚠ Warning: Could not save best/worst performers: {e}')
 
         return results_df
     else:

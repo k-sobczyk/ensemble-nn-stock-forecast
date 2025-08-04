@@ -2,14 +2,13 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.arima.model import ARIMA
 
 from src.model.baseline.baseline_utils import visualize_baseline_comparison
-from src.model.metrics.metrics import calculate_mape, calculate_mase
+from src.model.metrics.metrics import calculate_mae, calculate_mape, calculate_mase, calculate_r2, calculate_rmse
 
 
-def find_best_arima_order(data, max_p=3, max_d=2, max_q=3):
+def find_best_arima_order(data, max_p=5, max_d=2, max_q=5):
     best_aic = float('inf')
     best_order = (1, 1, 1)
 
@@ -97,14 +96,30 @@ def predict_arima_for_time_series(time_series, test_start_date='2021-01-01'):
 
     try:
         best_order = find_best_arima_order(train_ts.values)
+        print(f'  Selected ARIMA order: {best_order}')
+        # Diagnostic: explain what the model is doing
+        if best_order == (0, 1, 0):
+            print('  📈 Random walk model - ARIMA chose "last value" strategy')
+        else:
+            print('  📊 Pattern-based model - ARIMA found exploitable patterns')
 
+        # Use proper out-of-sample forecasting (no data leakage)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             model = ARIMA(train_ts.values, order=best_order)
             fitted_model = model.fit()
 
+            # Forecast all test steps at once (multi-step ahead)
             forecast_steps = len(test_ts)
             forecast = fitted_model.forecast(steps=forecast_steps)
+
+        forecast = np.array(forecast)
+
+        # Diagnostic: check prediction variance
+        pred_variance = np.var(forecast)
+        print(f'  Prediction variance (log scale): {pred_variance:.6f}')
+        if pred_variance < 1e-6:
+            print('  ⚠️  Warning: Very low prediction variance - may indicate straight line predictions')
 
         y_true_orig = np.expm1(test_ts.values)
         y_pred_orig = np.expm1(forecast)
@@ -120,26 +135,40 @@ def predict_arima_for_time_series(time_series, test_start_date='2021-01-01'):
 def evaluate_single_ticker_arima(ticker, time_series, test_start_date='2021-01-01'):
     print(f'\nProcessing {ticker}...')
 
+    # Get the ARIMA order for tracking
+    train_ts = time_series[time_series.index < test_start_date]['target_log']
+    try:
+        best_order = find_best_arima_order(train_ts.values)
+        best_order_str = f'({best_order[0]},{best_order[1]},{best_order[2]})'
+    except Exception:
+        best_order_str = 'Unknown'
+
     y_true, y_pred, y_train = predict_arima_for_time_series(time_series, test_start_date)
 
     if y_true is None:
         print(f'✗ Failed to process {ticker} (insufficient data or model error)')
         return None
 
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    rmse = calculate_rmse(y_true, y_pred)
+    mae = calculate_mae(y_true, y_pred)
     mape = calculate_mape(y_true, y_pred)
     mase = calculate_mase(y_true, y_pred, y_train)
+    r2 = calculate_r2(y_true, y_pred)
 
-    print(f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAPE: {mape:.2f}%, MASE: {mase:.4f}')
+    print(
+        f'✓ Successfully processed {ticker} - RMSE: {rmse:.4f}, MAE: {mae:.4f}, MAPE: {mape:.2f}%, MASE: {mase:.4f}, R2: {r2:.4f}'
+    )
 
     return {
         'ticker': ticker,
         'rmse': rmse,
+        'mae': mae,
         'mape': mape,
         'mase': mase,
+        'r2': r2,
         'n_test_samples': len(y_true),
         'n_train_samples': len(y_train),
-        'best_arima_order': 'Unknown',
+        'best_arima_order': best_order_str,
     }
 
 
@@ -175,12 +204,10 @@ def arima_baseline_evaluation(
 
             if create_visualizations:
                 try:
+                    # Prepare ticker data for visualization
                     ticker_data = time_series.reset_index()
                     ticker_data['ticker'] = ticker
-                    ticker_data['end_of_period'] = ticker_data.index
-
-                    ticker_data['end_of_period'] = time_series.index
-                    ticker_data = ticker_data.reset_index(drop=True)
+                    # Keep the end_of_period from the index
 
                     visualize_baseline_comparison(ticker_data, ticker, test_start_date)
                 except Exception as e:
@@ -198,19 +225,36 @@ def arima_baseline_evaluation(
 
         print('\nAVERAGE METRICS ACROSS ALL TICKERS:')
         print(f'RMSE: {results_df["rmse"].mean():.4f} ± {results_df["rmse"].std():.4f}')
+        print(f'MAE: {results_df["mae"].mean():.4f} ± {results_df["mae"].std():.4f}')
         print(f'MAPE: {results_df["mape"].mean():.2f}% ± {results_df["mape"].std():.2f}%')
         print(f'MASE: {results_df["mase"].mean():.4f} ± {results_df["mase"].std():.4f}')
+        print(f'R2: {results_df["r2"].mean():.4f} ± {results_df["r2"].std():.4f}')
 
         print('\nPERFORMANCE DISTRIBUTION:')
         print(f'Best RMSE: {results_df["rmse"].min():.4f} ({results_df.loc[results_df["rmse"].idxmin(), "ticker"]})')
         print(f'Worst RMSE: {results_df["rmse"].max():.4f} ({results_df.loc[results_df["rmse"].idxmax(), "ticker"]})')
         print(f'Median RMSE: {results_df["rmse"].median():.4f}')
 
-        results_df.to_csv('arima_baseline_detailed_results.csv', index=False)
-        print('\nDetailed results saved to: arima_baseline_detailed_results.csv')
+        # Save to output directory
+        import os
+
+        output_dir = 'src/model/baseline/output'
+        os.makedirs(output_dir, exist_ok=True)
+
+        results_path = os.path.join(output_dir, 'arima_baseline_detailed_results.csv')
+        results_df.to_csv(results_path, index=False)
+        print(f'\nDetailed results saved to: {results_path}')
 
         if create_visualizations:
-            print('Visualizations saved to: src/model/baseline/visualization_images/')
+            print('Visualizations saved to: src/model/baseline/output/visualizations/')
+
+        # Save best and worst performers
+        from src.model.baseline.baseline_utils import save_best_worst_performers
+
+        try:
+            save_best_worst_performers(results_df, 'arima')
+        except Exception as e:
+            print(f'⚠ Warning: Could not save best/worst performers: {e}')
 
         return results_df
     else:
