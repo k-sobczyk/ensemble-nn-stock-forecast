@@ -18,6 +18,44 @@ def calculate_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return np.mean(np.abs((y_true_filtered - y_pred_filtered) / y_true_filtered)) * 100
 
 
+def calculate_symmetric_mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Calculates Symmetric Mean Absolute Percentage Error (more robust for stock prices)."""
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    denominator = (np.abs(y_true) + np.abs(y_pred)) / 2
+    non_zero_mask = denominator != 0
+    if np.sum(non_zero_mask) == 0:
+        return np.nan
+
+    y_true_filtered = y_true[non_zero_mask]
+    y_pred_filtered = y_pred[non_zero_mask]
+    denominator_filtered = denominator[non_zero_mask]
+
+    return np.mean(np.abs(y_true_filtered - y_pred_filtered) / denominator_filtered) * 100
+
+
+def calculate_mape_log_scale(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Calculates MAPE on log scale (more appropriate for price data)."""
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+
+    # Ensure positive values for log transformation
+    if np.any(y_true <= 0) or np.any(y_pred <= 0):
+        print('Warning: Non-positive values found, using log1p transformation')
+        y_true_log = np.log1p(y_true)
+        y_pred_log = np.log1p(y_pred)
+    else:
+        y_true_log = np.log(y_true)
+        y_pred_log = np.log(y_pred)
+
+    non_zero_mask = y_true_log != 0
+    if np.sum(non_zero_mask) == 0:
+        return np.nan
+
+    y_true_filtered = y_true_log[non_zero_mask]
+    y_pred_filtered = y_pred_log[non_zero_mask]
+
+    return np.mean(np.abs((y_true_filtered - y_pred_filtered) / y_true_filtered)) * 100
+
+
 def calculate_mase(y_true: np.ndarray, y_pred: np.ndarray, y_train: np.ndarray) -> float:
     """Calculates Mean Absolute Scaled Error."""
     y_true, y_pred, y_train = np.array(y_true), np.array(y_pred), np.array(y_train)
@@ -64,6 +102,8 @@ def calculate_weighted_average_metrics(results_df):
             'rmse': results_df['rmse'].mean(),
             'mae': results_df['mae'].mean(),
             'mape': results_df['mape'].mean(),
+            'smape': results_df['smape'].mean() if 'smape' in results_df.columns else np.nan,
+            'mape_log': results_df['mape_log'].mean() if 'mape_log' in results_df.columns else np.nan,
             'mase': results_df['mase'].mean(),
             'r2': results_df['r2'].mean(),
         }
@@ -75,6 +115,8 @@ def calculate_weighted_average_metrics(results_df):
         'rmse': (results_df['rmse'] * weights).sum(),
         'mae': (results_df['mae'] * weights).sum(),
         'mape': (results_df['mape'] * weights).sum(),
+        'smape': (results_df['smape'] * weights).sum() if 'smape' in results_df.columns else np.nan,
+        'mape_log': (results_df['mape_log'] * weights).sum() if 'mape_log' in results_df.columns else np.nan,
         'mase': (results_df['mase'] * weights).sum(),
         'r2': (results_df['r2'] * weights).sum(),
     }
