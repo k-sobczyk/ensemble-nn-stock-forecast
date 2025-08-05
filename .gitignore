@@ -173,3 +173,5 @@ cython_debug/
 
 # Project specific
 model_prompt.md
+thesis_prompt/
+output/

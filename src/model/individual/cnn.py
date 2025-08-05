@@ -302,17 +302,21 @@ def main(
     )
 
     # Save loss plot
-    os.makedirs('src/model/individual/results/cnn_results', exist_ok=True)
-    from src.model.individual.run_all_models import plot_and_save_loss, save_individual_model_results
+    os.makedirs('src/model/individual/output/cnn_results', exist_ok=True)
+    from src.model.individual.model_utils import plot_and_save_loss, save_individual_model_results
 
-    plot_and_save_loss(train_losses, test_losses, 'src/model/individual/results/cnn_results/cnn_loss.png', 'CNN')
+    plot_and_save_loss(train_losses, test_losses, 'src/model/individual/output/cnn_results/cnn_loss.png', 'CNN')
 
     # Final evaluation
     print('\nFinal evaluation:')
     results = evaluate_model(model, X_test, y_test, scaler_y, model_type='cnn', model_name='CNN')
 
+    # Add training losses to results for use by run_all_models.py
+    results['train_losses'] = train_losses
+    results['validation_losses'] = test_losses
+
     # Save comprehensive results including MAPE, MASE, and training data
-    save_individual_model_results('CNN', results, train_losses, test_losses, 'src/model/individual/results')
+    save_individual_model_results('CNN', results, train_losses, test_losses, 'src/model/individual/output')
 
     return model, results
 
