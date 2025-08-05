@@ -89,6 +89,9 @@ class ModelTrainer:
 
         for model_name, model in models_dict.items():
             model.eval()
+            # Get the device of the model
+            device = next(model.parameters()).device
+
             with torch.no_grad():
                 if model_name == 'cnn':
                     # CNN needs different data format
@@ -97,12 +100,16 @@ class ModelTrainer:
 
                     model_preds = []
                     for batch_X in test_loader:
-                        batch_pred = model(batch_X).numpy()
+                        # Move batch to same device as model
+                        batch_X = batch_X.to(device)
+                        batch_pred = model(batch_X).cpu().numpy()  # Move to CPU for numpy conversion
                         model_preds.extend(batch_pred)
                     predictions[model_name] = np.array(model_preds).flatten()
                 else:
                     # RNN-based models
-                    pred = model(torch.FloatTensor(X_data)).numpy().flatten()
+                    # Move tensor to same device as model
+                    X_tensor = torch.FloatTensor(X_data).to(device)
+                    pred = model(X_tensor).cpu().numpy().flatten()  # Move to CPU for numpy conversion
                     predictions[model_name] = pred
 
         return predictions
