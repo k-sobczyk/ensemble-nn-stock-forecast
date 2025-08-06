@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Research-specific ensemble combinations runner.
+"""Research-specific ensemble combinations runner with optimized hyperparameters.
 
 This script runs the exact neural network combinations specified in the research:
 - Pair Combinations: LSTM+GRU, LSTM+CNN, GRU+BiLSTM, GRU+CNN, BiLSTM+CNN
 - Triplet Combinations: LSTM+GRU+CNN, GRU+BiLSTM+CNN
 - Ensemble Methods: Voting, Stacking, Blending for each combination
 
+Uses optimized hyperparameters from ensemble_config.py that were found through Optuna optimization.
 Results are saved with comprehensive CSV files and PNG visualizations similar to individual models.
 """
 
@@ -14,7 +15,7 @@ import sys
 import time
 from datetime import datetime
 
-from src.model.ensemble.enhanced_ensemble_runner import EnhancedEnsembleRunner
+from src.model.ensemble.optimized_ensemble_runner import OptimizedEnsembleRunner
 
 
 def run_research_pairs_only(epochs=30, dataset_path=None):
@@ -29,7 +30,9 @@ def run_research_pairs_only(epochs=30, dataset_path=None):
     print('  5. Bi-LSTM + CNN (High diversity: Bidirectional + Feature extraction)')
     print('=' * 80)
 
-    runner = EnhancedEnsembleRunner(epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv')
+    runner = OptimizedEnsembleRunner(
+        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    )
 
     runner.prepare_data()
     runner.run_all_pairs()
@@ -47,7 +50,9 @@ def run_research_triplets_only(epochs=30, dataset_path=None):
     print('  2. GRU + Bi-LSTM + CNN (Modern approach with bidirectional context)')
     print('=' * 80)
 
-    runner = EnhancedEnsembleRunner(epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv')
+    runner = OptimizedEnsembleRunner(
+        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    )
 
     runner.prepare_data()
     runner.run_all_triplets()
@@ -71,14 +76,16 @@ def run_complete_research_analysis(epochs=30, dataset_path=None):
     print('  • LSTM + GRU + CNN')
     print('  • GRU + Bi-LSTM + CNN')
     print('\nEnsemble Methods (applied to each combination):')
-    print('  • Voting (Weighted with optimized weights)')
-    print('  • Stacking (Ridge meta-model with 3-fold CV)')
-    print('  • Blending (Ridge meta-model with 20% blend ratio)')
+    print('  • Voting (Optimized parameters from Optuna)')
+    print('  • Stacking (Optimized parameters from Optuna)')
+    print('  • Blending (Optimized parameters from Optuna)')
     print('=' * 80)
 
     start_time = time.time()
 
-    runner = EnhancedEnsembleRunner(epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv')
+    runner = OptimizedEnsembleRunner(
+        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    )
 
     runner.prepare_data()
     results = runner.run_complete_analysis()
@@ -98,7 +105,7 @@ def run_quick_demo(epochs=15):
     print(f'Testing: LSTM+CNN, GRU+CNN, BiLSTM+CNN with {epochs} epochs each')
     print('=' * 60)
 
-    runner = EnhancedEnsembleRunner(epochs=epochs)
+    runner = OptimizedEnsembleRunner(epochs=epochs, use_optimized_params=True)
     runner.prepare_data()
 
     # Run only high-diversity pairs
