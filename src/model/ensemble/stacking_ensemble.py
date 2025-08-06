@@ -5,7 +5,7 @@ from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
 from src.model.ensemble.ensemble_base import BaseEnsemble, ModelTrainer, create_cross_validation_folds
 
 
-class EnhancedStackingEnsemble(BaseEnsemble):
+class StackingEnsemble(BaseEnsemble):
     """Enhanced Stacking Ensemble with support for hyperparameter optimization."""
 
     def __init__(

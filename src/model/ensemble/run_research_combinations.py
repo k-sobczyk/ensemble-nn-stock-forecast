@@ -15,7 +15,7 @@ import sys
 import time
 from datetime import datetime
 
-from src.model.ensemble.optimized_ensemble_runner import OptimizedEnsembleRunner
+from src.model.ensemble.enhanced_ensemble_runner import EnhancedEnsembleRunner
 
 
 def run_research_pairs_only(epochs=30, dataset_path=None):
@@ -30,8 +30,11 @@ def run_research_pairs_only(epochs=30, dataset_path=None):
     print('  5. Bi-LSTM + CNN (High diversity: Bidirectional + Feature extraction)')
     print('=' * 80)
 
-    runner = OptimizedEnsembleRunner(
-        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    runner = EnhancedEnsembleRunner(
+        epochs=epochs,
+        df_path=dataset_path or 'dataset_1_full_features.csv',
+        use_optimized_params=True,
+        output_dir='output_research_pairs',
     )
 
     runner.prepare_data()
@@ -50,8 +53,11 @@ def run_research_triplets_only(epochs=30, dataset_path=None):
     print('  2. GRU + Bi-LSTM + CNN (Modern approach with bidirectional context)')
     print('=' * 80)
 
-    runner = OptimizedEnsembleRunner(
-        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    runner = EnhancedEnsembleRunner(
+        epochs=epochs,
+        df_path=dataset_path or 'dataset_1_full_features.csv',
+        use_optimized_params=True,
+        output_dir='output_research_triplets',
     )
 
     runner.prepare_data()
@@ -83,8 +89,11 @@ def run_complete_research_analysis(epochs=30, dataset_path=None):
 
     start_time = time.time()
 
-    runner = OptimizedEnsembleRunner(
-        epochs=epochs, df_path=dataset_path or 'dataset_1_full_features.csv', use_optimized_params=True
+    runner = EnhancedEnsembleRunner(
+        epochs=epochs,
+        df_path=dataset_path or 'dataset_1_full_features.csv',
+        use_optimized_params=True,
+        output_dir='output_complete_research',
     )
 
     runner.prepare_data()
@@ -105,7 +114,7 @@ def run_quick_demo(epochs=15):
     print(f'Testing: LSTM+CNN, GRU+CNN, BiLSTM+CNN with {epochs} epochs each')
     print('=' * 60)
 
-    runner = OptimizedEnsembleRunner(epochs=epochs, use_optimized_params=True)
+    runner = EnhancedEnsembleRunner(epochs=epochs, use_optimized_params=True, output_dir='output_quick_demo')
     runner.prepare_data()
 
     # Run only high-diversity pairs

@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from src.model.ensemble.ensemble_base import BaseEnsemble, ModelTrainer
 
 
-class EnhancedBlendingEnsemble(BaseEnsemble):
+class BlendingEnsemble(BaseEnsemble):
     """Enhanced Blending Ensemble with support for hyperparameter optimization."""
 
     def __init__(
