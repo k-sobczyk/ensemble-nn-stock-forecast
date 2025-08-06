@@ -172,6 +172,5 @@ cython_debug/
 *.json
 
 # Project specific
-model_prompt.md
-thesis_prompt/
 output/
+research_output/

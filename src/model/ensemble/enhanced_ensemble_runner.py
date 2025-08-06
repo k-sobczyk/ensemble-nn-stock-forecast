@@ -244,15 +244,15 @@ class EnhancedEnsembleRunner:
         metrics_df.to_csv(os.path.join(method_dir, f'{combination_name.lower()}_{method}_metrics.csv'), index=False)
 
         # Save predictions to CSV
-        actual = results['predictions']['actual_values']
-        predicted = results['predictions']['predicted_values']
+        actual = np.array(results['predictions']['actual_values'])
+        predicted = np.array(results['predictions']['predicted_values'])
         pred_df = pd.DataFrame(
             {
                 'actual': actual,
                 'predicted': predicted,
-                'residual': np.array(actual) - np.array(predicted),
-                'abs_error': np.abs(np.array(actual) - np.array(predicted)),
-                'percentage_error': np.abs((np.array(actual) - np.array(predicted)) / np.array(actual)) * 100,
+                'residual': actual - predicted,
+                'abs_error': np.abs(actual - predicted),
+                'percentage_error': np.abs((actual - predicted) / actual) * 100,
             }
         )
         pred_df.to_csv(os.path.join(method_dir, f'{combination_name.lower()}_{method}_predictions.csv'), index=False)
@@ -264,7 +264,7 @@ class EnhancedEnsembleRunner:
         if not valid_methods:
             return
 
-        # 1. Create predictions vs actual scatter plot for each method
+        # Simple combination-level plot
         n_methods = len(valid_methods)
         if n_methods == 0:
             return
@@ -272,8 +272,6 @@ class EnhancedEnsembleRunner:
         fig, axes = plt.subplots(1, min(n_methods, 3), figsize=(5 * min(n_methods, 3), 5))
         if n_methods == 1:
             axes = [axes]
-        elif n_methods == 2:
-            axes = axes
 
         for idx, (method, results) in enumerate(valid_methods.items()):
             if idx >= 3:  # Limit to 3 subplots
@@ -295,40 +293,6 @@ class EnhancedEnsembleRunner:
         plt.tight_layout()
         plt.savefig(
             os.path.join(combination_dir, f'{combination_name.lower()}_predictions_comparison.png'),
-            dpi=300,
-            bbox_inches='tight',
-        )
-        plt.close()
-
-        # 2. Create metrics comparison bar chart
-        metrics_to_plot = ['rmse', 'mae', 'r2', 'mape']
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-        axes = axes.flatten()
-
-        for idx, metric in enumerate(metrics_to_plot):
-            ax = axes[idx]
-            methods = []
-            values = []
-
-            for method, results in valid_methods.items():
-                if metric in results['metrics'] and not np.isnan(results['metrics'][metric]):
-                    methods.append(method.upper())
-                    values.append(results['metrics'][metric])
-
-            if values:
-                bars = ax.bar(methods, values, alpha=0.7)
-                ax.set_title(f'{metric.upper()}')
-                ax.set_ylabel(metric.upper())
-
-                # Add value labels on bars
-                for bar, value in zip(bars, values):
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{value:.4f}', ha='center', va='bottom')
-
-        plt.suptitle(f'{combination_name} - Metrics Comparison', fontsize=16, fontweight='bold')
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(combination_dir, f'{combination_name.lower()}_metrics_comparison.png'),
             dpi=300,
             bbox_inches='tight',
         )
