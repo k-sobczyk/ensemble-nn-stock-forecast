@@ -10,6 +10,13 @@ import seaborn as sns
 
 from src.model.ensemble.blending_ensemble import BlendingEnsemble
 from src.model.ensemble.ensemble_base import prepare_ensemble_data
+from src.model.ensemble.ensemble_config import (
+    USE_OPTIMIZED_ENSEMBLE_PARAMS,
+    VERBOSE_ENSEMBLE_PARAMS,
+    get_optimized_blending_params,
+    get_optimized_stacking_params,
+    get_optimized_voting_params,
+)
 from src.model.ensemble.stacking_ensemble import StackingEnsemble
 from src.model.ensemble.voting_ensemble import VotingEnsemble
 
@@ -24,12 +31,14 @@ class EnhancedEnsembleRunner:
         test_start_year=2021,
         epochs=30,
         output_dir='output',
+        use_optimized_params=True,
     ):
         self.df_path = df_path
         self.sequence_length = sequence_length
         self.test_start_year = test_start_year
         self.epochs = epochs
         self.output_dir = output_dir
+        self.use_optimized_params = use_optimized_params and USE_OPTIMIZED_ENSEMBLE_PARAMS
         self.results = {}
 
         # Ensure output directory exists
@@ -116,8 +125,12 @@ class EnhancedEnsembleRunner:
     def run_combination(self, combination_name, models_config, ensemble_methods=['voting', 'stacking', 'blending']):
         """Run a specific neural network combination with selected ensemble methods."""
         print(f'\n{"=" * 80}')
-        print(f'TESTING COMBINATION: {combination_name}')
+        print(f'ENSEMBLE COMBINATION: {combination_name}')
         print(f'Models: {[model for model, enabled in models_config.items() if enabled]}')
+        if self.use_optimized_params:
+            print('🎯 Using optimized hyperparameters from ensemble_config.py')
+        else:
+            print('⚙️  Using default hyperparameters')
         print(f'{"=" * 80}')
 
         combination_results = {}
@@ -127,17 +140,19 @@ class EnhancedEnsembleRunner:
         for method in ensemble_methods:
             print(f'\n{"-" * 60}')
             print(f'Running {method.upper()} Ensemble for {combination_name}')
+            if self.use_optimized_params:
+                print('🎯 Using optimized parameters')
             print(f'{"-" * 60}')
 
             start_time = time.time()
 
             try:
                 if method == 'voting':
-                    ensemble = VotingEnsemble(models_config, voting_type='weighted', optimize_weights=True)
+                    ensemble = self._create_voting_ensemble(combination_name, models_config)
                 elif method == 'stacking':
-                    ensemble = StackingEnsemble(models_config, meta_model_type='ridge', cv_folds=3)
+                    ensemble = self._create_stacking_ensemble(combination_name, models_config)
                 elif method == 'blending':
-                    ensemble = BlendingEnsemble(models_config, meta_model_type='ridge', blend_ratio=0.2)
+                    ensemble = self._create_blending_ensemble(combination_name, models_config)
                 else:
                     print(f'Unknown ensemble method: {method}')
                     continue
@@ -171,6 +186,7 @@ class EnhancedEnsembleRunner:
                     'combination_name': combination_name,
                     'ensemble_method': method,
                     'models_used': [model for model, enabled in models_config.items() if enabled],
+                    'optimized_params': self._get_used_params(combination_name, method),
                     'metrics': {
                         'rmse': float(metrics['rmse']),
                         'mae': float(metrics['mae']),
@@ -186,6 +202,7 @@ class EnhancedEnsembleRunner:
                         'epochs': self.epochs,
                         'sequence_length': self.sequence_length_used,
                         'input_size': self.input_size,
+                        'used_optimized_params': self.use_optimized_params,
                     },
                     'predictions': {
                         'actual_values': [float(x) for x in actual],
@@ -227,15 +244,15 @@ class EnhancedEnsembleRunner:
         metrics_df.to_csv(os.path.join(method_dir, f'{combination_name.lower()}_{method}_metrics.csv'), index=False)
 
         # Save predictions to CSV
-        actual = results['predictions']['actual_values']
-        predicted = results['predictions']['predicted_values']
+        actual = np.array(results['predictions']['actual_values'])
+        predicted = np.array(results['predictions']['predicted_values'])
         pred_df = pd.DataFrame(
             {
                 'actual': actual,
                 'predicted': predicted,
-                'residual': np.array(actual) - np.array(predicted),
-                'abs_error': np.abs(np.array(actual) - np.array(predicted)),
-                'percentage_error': np.abs((np.array(actual) - np.array(predicted)) / np.array(actual)) * 100,
+                'residual': actual - predicted,
+                'abs_error': np.abs(actual - predicted),
+                'percentage_error': np.abs((actual - predicted) / actual) * 100,
             }
         )
         pred_df.to_csv(os.path.join(method_dir, f'{combination_name.lower()}_{method}_predictions.csv'), index=False)
@@ -247,7 +264,7 @@ class EnhancedEnsembleRunner:
         if not valid_methods:
             return
 
-        # 1. Create predictions vs actual scatter plot for each method
+        # Simple combination-level plot
         n_methods = len(valid_methods)
         if n_methods == 0:
             return
@@ -255,8 +272,6 @@ class EnhancedEnsembleRunner:
         fig, axes = plt.subplots(1, min(n_methods, 3), figsize=(5 * min(n_methods, 3), 5))
         if n_methods == 1:
             axes = [axes]
-        elif n_methods == 2:
-            axes = axes
 
         for idx, (method, results) in enumerate(valid_methods.items()):
             if idx >= 3:  # Limit to 3 subplots
@@ -283,39 +298,70 @@ class EnhancedEnsembleRunner:
         )
         plt.close()
 
-        # 2. Create metrics comparison bar chart
-        metrics_to_plot = ['rmse', 'mae', 'r2', 'mape']
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-        axes = axes.flatten()
+    def _create_voting_ensemble(self, combination_name, models_config):
+        """Create voting ensemble with optimized parameters."""
+        if self.use_optimized_params:
+            params = get_optimized_voting_params(combination_name)
+            if VERBOSE_ENSEMBLE_PARAMS:
+                print(f'🎯 Optimized Voting params: {params}')
+        else:
+            params = {'voting_type': 'weighted', 'optimize_weights': True}
 
-        for idx, metric in enumerate(metrics_to_plot):
-            ax = axes[idx]
-            methods = []
-            values = []
-
-            for method, results in valid_methods.items():
-                if metric in results['metrics'] and not np.isnan(results['metrics'][metric]):
-                    methods.append(method.upper())
-                    values.append(results['metrics'][metric])
-
-            if values:
-                bars = ax.bar(methods, values, alpha=0.7)
-                ax.set_title(f'{metric.upper()}')
-                ax.set_ylabel(metric.upper())
-
-                # Add value labels on bars
-                for bar, value in zip(bars, values):
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{value:.4f}', ha='center', va='bottom')
-
-        plt.suptitle(f'{combination_name} - Metrics Comparison', fontsize=16, fontweight='bold')
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(combination_dir, f'{combination_name.lower()}_metrics_comparison.png'),
-            dpi=300,
-            bbox_inches='tight',
+        return VotingEnsemble(
+            models_config, voting_type=params['voting_type'], optimize_weights=params['optimize_weights']
         )
-        plt.close()
+
+    def _create_stacking_ensemble(self, combination_name, models_config):
+        """Create stacking ensemble with optimized parameters."""
+        if self.use_optimized_params:
+            params = get_optimized_stacking_params(combination_name)
+            if VERBOSE_ENSEMBLE_PARAMS:
+                print(f'🎯 Optimized Stacking params: {params}')
+        else:
+            params = {'meta_model_type': 'ridge', 'cv_folds': 5, 'alpha': 1.0}
+
+        return StackingEnsemble(
+            models_config,
+            meta_model_type=params['meta_model_type'],
+            cv_folds=params['cv_folds'],
+            alpha=params.get('alpha', 1.0),
+            l1_ratio=params.get('l1_ratio', 0.5),
+            n_estimators=params.get('n_estimators', 100),
+            max_depth=params.get('max_depth', 5),
+        )
+
+    def _create_blending_ensemble(self, combination_name, models_config):
+        """Create blending ensemble with optimized parameters."""
+        if self.use_optimized_params:
+            params = get_optimized_blending_params(combination_name)
+            if VERBOSE_ENSEMBLE_PARAMS:
+                print(f'🎯 Optimized Blending params: {params}')
+        else:
+            params = {'meta_model_type': 'ridge', 'blend_ratio': 0.2, 'alpha': 1.0}
+
+        return BlendingEnsemble(
+            models_config,
+            meta_model_type=params['meta_model_type'],
+            blend_ratio=params['blend_ratio'],
+            alpha=params.get('alpha', 1.0),
+            l1_ratio=params.get('l1_ratio', 0.5),
+            n_estimators=params.get('n_estimators', 100),
+            max_depth=params.get('max_depth', 5),
+        )
+
+    def _get_used_params(self, combination_name, method):
+        """Get the parameters that were actually used for this combination/method."""
+        if not self.use_optimized_params:
+            return {'source': 'default_parameters'}
+
+        if method == 'voting':
+            return {'source': 'ensemble_config.py', 'params': get_optimized_voting_params(combination_name)}
+        elif method == 'stacking':
+            return {'source': 'ensemble_config.py', 'params': get_optimized_stacking_params(combination_name)}
+        elif method == 'blending':
+            return {'source': 'ensemble_config.py', 'params': get_optimized_blending_params(combination_name)}
+        else:
+            return {'source': 'unknown'}
 
     def run_all_pairs(self):
         """Run all pair combinations."""
