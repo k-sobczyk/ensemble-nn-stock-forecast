@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import ElasticNet, LinearRegression, Ridge
-from sklearn.model_selection import train_test_split
 
 from src.model.ensemble.ensemble_base import BaseEnsemble, ModelTrainer
 
@@ -39,11 +38,13 @@ class BlendingEnsemble(BaseEnsemble):
         print('ENHANCED BLENDING ENSEMBLE TRAINING')
         print('=' * 60)
 
-        # Step 1: Split training data into base model training and blending sets
-        print(f'Splitting training data (blend_ratio={self.blend_ratio})...')
-        X_base, X_blend, y_base, y_blend = train_test_split(
-            X_train, y_train, test_size=self.blend_ratio, random_state=self.random_state
-        )
+        # Step 1: Split training data temporally (preserve time order)
+        print(f'Splitting training data temporally (blend_ratio={self.blend_ratio})...')
+        split_idx = int(len(X_train) * (1 - self.blend_ratio))
+        X_base = X_train[:split_idx]
+        X_blend = X_train[split_idx:]
+        y_base = y_train[:split_idx]
+        y_blend = y_train[split_idx:]
 
         print(f'Base model training set: {len(X_base)} samples')
         print(f'Blending set: {len(X_blend)} samples')
