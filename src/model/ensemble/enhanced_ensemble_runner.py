@@ -19,6 +19,7 @@ from src.model.ensemble.ensemble_config import (
 )
 from src.model.ensemble.stacking_ensemble import StackingEnsemble
 from src.model.ensemble.voting_ensemble import VotingEnsemble
+from src.model.metrics.metrics import calculate_mape, calculate_mape_log_scale, calculate_mase, calculate_symmetric_mape
 
 
 class EnhancedEnsembleRunner:
@@ -82,6 +83,9 @@ class EnhancedEnsembleRunner:
         )
 
         self.input_size = len(self.feature_cols)
+
+        # Store original training data for MASE calculations
+        self.y_train_original = self.scaler_y.inverse_transform(self.y_train.reshape(-1, 1)).flatten()
         self.sequence_length_used = self.X_train.shape[1]
 
         print(f'Training set: {self.X_train.shape}')
@@ -91,34 +95,18 @@ class EnhancedEnsembleRunner:
         print(f'Sequence length: {self.sequence_length_used}')
 
     def calculate_additional_metrics(self, actual, predicted):
-        """Calculate additional metrics similar to individual models."""
+        """Calculate additional metrics using the robust implementations from metrics.py."""
         # MAPE (Mean Absolute Percentage Error)
-        try:
-            mape = np.mean(np.abs((actual - predicted) / actual)) * 100
-        except ZeroDivisionError:
-            mape = np.nan
+        mape = calculate_mape(actual, predicted)
 
         # SMAPE (Symmetric Mean Absolute Percentage Error)
-        try:
-            smape = np.mean(2 * np.abs(predicted - actual) / (np.abs(actual) + np.abs(predicted))) * 100
-        except ZeroDivisionError:
-            smape = np.nan
+        smape = calculate_symmetric_mape(actual, predicted)
 
         # MAPE with log transformation
-        try:
-            actual_log = np.log1p(np.maximum(actual, 0))
-            predicted_log = np.log1p(np.maximum(predicted, 0))
-            mape_log = np.mean(np.abs((actual_log - predicted_log) / actual_log)) * 100
-        except Exception:
-            mape_log = np.nan
+        mape_log = calculate_mape_log_scale(actual, predicted)
 
-        # MASE (Mean Absolute Scaled Error) - simplified version
-        try:
-            naive_forecast_error = np.mean(np.abs(np.diff(actual)))
-            mae = np.mean(np.abs(actual - predicted))
-            mase = mae / naive_forecast_error if naive_forecast_error != 0 else np.nan
-        except Exception:
-            mase = np.nan
+        # MASE (Mean Absolute Scaled Error) - using proper training data
+        mase = calculate_mase(actual, predicted, self.y_train_original)
 
         return mape, mase, smape, mape_log
 

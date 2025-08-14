@@ -1,0 +1,164 @@
+
+\section{Baseline Results}
+
+To establish a foundational benchmark, the performance of the Last-Value Naïve model was evaluated across 260 companies. The model forecasts future values by simply repeating the last known value. The results were aggregated using a weighted average, where each company's metrics were weighted by its number of test samples to reflect the model's accuracy on more statistically significant time series. This baseline is crucial; any more complex model must demonstrably outperform it to justify its use.
+
+The aggregated performance metrics for the Last-Value Naïve model are summarized in Table \ref{tab:naive_model_performance}. The results indicate that, on average, the model provides an unusable prediction. A Mean Absolute Scaled Error (MASE) of 3.25 signifies that the model's average error is more than three times larger than a simple one-step naive forecast on the training data, indicating a failure to capture meaningful temporal continuity. The R$^2$ value of -4.64 is particularly significant, confirming that the model not only fails to explain any variance in the data but performs substantially worse than simply predicting the mean.
+
+\begin{table}[h!]
+\centering
+\caption{Weighted Average Performance of Last-Value Naïve Model Across 260 Companies}
+\label{tab:naive_model_performance}
+\begin{tabular}{lc}
+\textbf{Metric} & \textbf{Last-Value Naïve} \\
+RMSE & 41.04 \\
+MAE & 37.20 \\
+MASE & 3.25 \\
+SMAPE & 35.23\% \\
+Log-MAPE & 54.67\% \\
+R$^2$ & -4.64 \\
+\end{tabular}
+\end{table}
+
+While the aggregated metrics provide a general overview, a closer look at individual cases reveals a wide range of performance. The model performed best on the ticker PBG, achieving a low RMSE of 0.011 and a Log-MAPE of 5.92\%. This performance is attributed to the stock price exhibiting near-random walk behavior. Figure \ref{fig:pbg_last_value_baseline} illustrates this, showing the last-value forecast closely aligning with actual values in the test set. In stark contrast, the model performed worst on the ticker LPP, with an RMSE of 6788.09 and a MASE of 13.41. This catastrophic failure, depicted in Figure \ref{fig:lpp_last_value_baseline}, shows the constant forecast being completely unable to capture the high volatility and strong upward trend in the test set. These extreme cases underscore the necessity of moving beyond a simple baseline to a more sophisticated model that can adapt to diverse temporal patterns.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/PBG_last_value_baseline.png}
+    \caption{Last-Value Naïve Model Performance for PBG}
+    \label{fig:pbg_last_value_baseline}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/LPP_last_value_baseline.png}
+    \caption{Last-Value Naïve Model Performance for LPP}
+    \label{fig:lpp_last_value_baseline}
+\end{figure}
+
+
+\subsection{Performance of Individual Neural Network Models}
+This section presents a detailed analysis of the performance of four individual neural network models: Long Short-Term Memory (LSTM), Gated Recurrent Unit (GRU), Bidirectional LSTM (Bi-LSTM), and Convolutional Neural Network (CNN). The models' effectiveness is assessed based on a suite of metrics, and their training characteristics are also discussed. A summary of all models' performance is provided in Table \ref{tab:nn_performance}, highlighting the significant leap in predictive capability over the naive baseline.
+
+\paragraph{LSTM Model Performance}
+The LSTM model demonstrated strong performance by effectively capturing the temporal dependencies within the financial time series. It achieved a low average RMSE of 0.783 and a high R$^2$ value of 0.715, indicating it successfully explains over 71\% of the variance in the stock prices. The MASE of 0.388 is also highly favorable, suggesting its average error is less than 40\% of the naive forecast's error. The model's training history, shown in Figure \ref{fig:lstm_training_history}, indicates stable convergence with a minimal gap between training and validation loss.
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/lstm_training_history.png}
+\caption{LSTM Model Training and Validation History}
+\label{fig:lstm_training_history}
+\end{figure}
+
+\paragraph{GRU Model Performance}
+As a more computationally efficient alternative to the LSTM, the GRU model produced comparable predictive results. It achieved an RMSE of 0.792 and an R$^2$ of 0.709, nearly matching the LSTM. The MASE of 0.389 is also almost identical to the LSTM, confirming its similar predictive accuracy relative to the baseline. A key advantage of the GRU was its training efficiency; with a training time of just 1.04 minutes, it was significantly faster than the LSTM's 2.48 minutes. The training history in Figure \ref{fig:gru_training_history} shows a rapid and stable convergence.
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/gru_training_history.png}
+\caption{GRU Model Training and Validation History}
+\label{fig:gru_training_history}
+\end{figure}
+
+\paragraph{Bi-LSTM Model Performance}
+The Bidirectional LSTM (Bi-LSTM) model, which processes data in both forward and backward directions, yielded mixed but promising results. It achieved the best MAE (0.586) and MASE (0.382) among all models, highlighting its robust performance on average error. However, its RMSE (0.851) and R$^2$ (0.663) were slightly worse than the unidirectional LSTM and GRU. This suggests that while the Bi-LSTM's average error is smaller, it may be more susceptible to larger, less frequent prediction errors. The model was also the fastest-training recurrent network, completing in just 0.44 minutes, as illustrated in its training history plot in Figure \ref{fig:bi-lstm_training_history}.
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/bi-lstm_training_history.png}
+\caption{Bi-LSTM Model Training and Validation History}
+\label{fig:bi-lstm_training_history}
+\end{figure}
+
+\paragraph{CNN Model Performance}
+The CNN model, designed to capture local patterns, struggled to match the performance of the recurrent architectures for this time series forecasting task. It recorded the highest RMSE (1.132) and the lowest R$^2$ (0.405), explaining only about 40\% of the data's variance. Its MASE of 0.580, while better than the baseline, was the highest among all neural network models. However, the model was the fastest to train, completing in just 0.37 minutes. This suggests that while CNNs are computationally efficient, their design is less suited for capturing the intricate long-term temporal dependencies critical for this domain. The training history in Figure \ref{fig:cnn_training_history} shows a less stable loss curve compared to the recurrent models.
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/cnn_training_history.png}
+\caption{CNN Model Training and Validation History}
+\label{fig:cnn_training_history}
+\end{figure}
+
+\paragraph{Summary and Comparison to Baseline}
+Table \ref{tab:nn_performance} presents a summary of the performance metrics for all individual neural network models. A comparison to the Last-Value Naïve baseline reveals a dramatic improvement across all metrics. The neural network models achieve positive and high R$^2$ values, a stark contrast to the baseline's R$^2$ of -4.64. The MASE values for all recurrent models are significantly below 1, indicating they are, on average, more than two and a half times better than the baseline. Among the neural networks, the LSTM, GRU, and Bi-LSTM models demonstrate superior performance, with Bi-LSTM showing the best MAE and MASE. The CNN model, while fast, proved to be less effective at capturing the sequential financial patterns. The overall results clearly validate the use of advanced neural networks for this complex forecasting task.
+
+\begin{table}[h!]
+\centering
+\caption{Weighted Average Performance of Individual Neural Network Models}
+\label{tab:nn_performance}
+\begin{tabular}{lccccccc}
+\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{MASE} & \textbf{SMAPE} & \textbf{Log-MAPE} & \textbf{R$^2$} & \textbf{Training Time (min)} \\
+LSTM & 0.783 & 0.596 & 0.388 & 26.53\% & 30.79\% & 0.715 & 2.48 \\
+GRU & 0.792 & 0.597 & 0.389 & 25.42\% & 81.43\% & 0.709 & 1.04 \\
+Bi-LSTM & 0.851 & 0.586 & 0.382 & 25.62\% & 22.63\% & 0.663 & 0.44 \\
+CNN & 1.132 & 0.891 & 0.580 & 37.99\% & 174.36\% & 0.405 & 0.37 \\
+\end{tabular}
+\end{table}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/performance_comparison.png}
+\caption{Performance Comparison of Individual Models}
+\label{fig:performance_comparison}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{img/training_time_comparison.png}
+\caption{Training Time Comparison of Individual Models}
+\label{fig:training_time_comparison}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.9\textwidth]{img/predictions_comparison.png}
+\caption{Predictions vs. Actual Values Comparison}
+\label{fig:predictions_comparison}
+\end{figure}
+
+\subsection{Performance of Ensemble Architectures}
+
+Ensemble learning was applied to combine the predictive power of the individual neural network models, aiming to improve performance and robustness. Three common ensemble methods—voting, blending, and stacking—were evaluated on various combinations of the top-performing models. The results, summarized in Table \ref{tab:ensemble_performance}, show that ensemble models, particularly those employing stacking and voting, generally outperform the individual models and provide a significant improvement over the naive baseline.
+
+\begin{table}[h!]
+\centering
+\caption{Weighted Average Performance of Ensemble Architectures}
+\label{tab:ensemble_performance}
+\tiny % Using an even smaller font size
+\begin{tabular}{@{}llccccccc@{}} % Adjusting column spacing to the minimum
+\toprule
+\textbf{Combination} & \textbf{Method} & \textbf{RMSE} & \textbf{MAE} & \textbf{R$^2$} & \textbf{MASE} & \textbf{Log-MAPE} & \textbf{Training Time (min)} \\
+\midrule
+\multirow{3}{*}{LSTM\_GRU} & Voting & 0.913 & 0.683 & 0.613 & 0.445 & 20.39\% & 130.75 \\
+& Blending & 1.174 & 0.880 & 0.360 & 0.573 & 30.12\% & 111.18 \\
+& Stacking & \textbf{0.855} & \textbf{0.641} & \textbf{0.660} & \textbf{0.418} & \textbf{18.65\%} & 135.36 \\
+\midrule
+\multirow{3}{*}{LSTM\_CNN} & Voting & 0.935 & 0.698 & 0.594 & 0.455 & 24.65\% & 103.98 \\
+& Blending & 1.293 & 0.963 & 0.223 & 0.628 & 30.86\% & 91.89 \\
+& Stacking & 0.874 & 0.659 & 0.645 & 0.430 & 18.87\% & 104.07 \\
+\midrule
+\multirow{3}{*}{GRU\_CNN} & Voting & 0.958 & 0.681 & 0.574 & 0.444 & 25.15\% & 69.98 \\
+& Blending & 1.124 & 0.822 & 0.413 & 0.535 & 29.90\% & 31.90 \\
+& Stacking & 1.481 & 1.155 & -0.019 & 0.753 & 48.97\% & 37.80 \\
+\midrule
+\multirow{3}{*}{GRU\_BiLSTM} & Voting & 0.935 & 0.658 & 0.594 & 0.429 & 19.37\% & 42.50 \\
+& Blending & 1.083 & 0.773 & 0.455 & 0.503 & 24.52\% & 41.04 \\
+& Stacking & 0.889 & 0.650 & 0.633 & 0.423 & 19.64\% & 45.21 \\
+\midrule
+\multirow{3}{*}{BiLSTM\_CNN} & Voting & 0.963 & 0.680 & 0.570 & 0.443 & 23.79\% & 28.97 \\
+& Blending & 1.097 & 0.824 & 0.441 & 0.537 & 32.91\% & 31.50 \\
+& Stacking & 0.971 & 0.668 & 0.562 & 0.436 & 17.98\% & 48.93 \\
+\midrule
+\multirow{3}{*}{LSTM\_GRU\_CNN} & Voting & 0.888 & 0.658 & 0.633 & 0.429 & 18.84\% & 89.34 \\
+& Blending & 1.217 & 0.900 & 0.312 & 0.587 & 31.23\% & 72.93 \\
+& Stacking & 0.910 & 0.665 & 0.616 & 0.434 & 23.37\% & 90.79 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results of the ensemble models reveal a clear hierarchy of predictive performance. The stacking ensemble method consistently yielded the most accurate results. The best-performing ensemble was the LSTM\_GRU stacking model, which achieved the lowest RMSE (0.855) and MAE (0.641) and the highest R$^2$ (0.660) among all configurations. This approach's success stems from its use of a meta-learner to intelligently combine the base models' predictions, allowing it to correct for their individual weaknesses and biases.
+
+Voting ensembles also provided robust performance, serving as a reliable alternative to stacking. They generally delivered strong and consistent results, with the `LSTM-GRU` voting model achieving an R$^2$ of 0.613. This method is computationally less complex than stacking as it simply averages the outputs of the base models, making it a good choice when balancing performance with computational efficiency is a priority.
+
+In contrast, the blending method generally underperformed compared to both stacking and voting. Blending models often exhibited higher RMSE and lower R$^2$ values, indicating they were less effective at combining predictions. This suggests that the simple combination of predictions from base models on a limited validation set was not sufficient to capture the complex inter-model relationships necessary for optimal forecasting. The `GRU-CNN` blending model, in particular, performed poorly with an R$^2$ of 0.413, showing little improvement over the weakest individual model.
+
+A comparison of the ensemble results to both the individual neural network models and the naive baseline reveals a clear hierarchy of predictive power. All ensemble models, with the exception of the poorly performing `GRU-CNN` stacking model, demonstrated a substantial performance improvement over the Last-Value Naïve baseline. Their R$^2$ values are all positive and a stark contrast to the baseline's R$^2$ of -4.64.
+
+When compared to the individual models, the best stacking ensembles provided a more robust and slightly better overall performance. While the Bi-LSTM model had the lowest individual MAE (0.586) and MASE (0.382), the best stacking ensemble (`LSTM-GRU`) achieved a superior R$^2$ and a competitive MAE, demonstrating its ability to create a more balanced and reliable forecast by leveraging the strengths of multiple architectures. The training times for ensemble models were significantly longer due to the need to train multiple base models, but the gain in predictive performance often justified this increased computational cost.

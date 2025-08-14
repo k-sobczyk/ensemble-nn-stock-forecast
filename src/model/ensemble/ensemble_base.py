@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import torch
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold
 
 from src.model.individual.bi_lstm import train_bi_lstm_model
@@ -12,6 +11,11 @@ from src.model.individual.gru import train_gru_model
 # Import individual models
 from src.model.individual.lstm import train_lstm_model
 from src.model.individual.model_utils import prepare_data
+from src.model.metrics.metrics import (
+    calculate_mae,
+    calculate_r2,
+    calculate_rmse,
+)
 
 
 class BaseEnsemble(ABC):
@@ -33,15 +37,16 @@ class BaseEnsemble(ABC):
         pass
 
     def evaluate(self, y_true, y_pred, scaler_y=None):
-        """Evaluate ensemble performance."""
+        """Evaluate ensemble performance using robust metrics."""
         if scaler_y is not None:
             y_true = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
             y_pred = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
 
-        mse = mean_squared_error(y_true, y_pred)
-        mae = mean_absolute_error(y_true, y_pred)
-        r2 = r2_score(y_true, y_pred)
-        rmse = np.sqrt(mse)
+        # Use robust metric calculations
+        rmse = calculate_rmse(y_true, y_pred)
+        mae = calculate_mae(y_true, y_pred)
+        r2 = calculate_r2(y_true, y_pred)
+        mse = rmse**2  # MSE is just RMSE squared
 
         return {'rmse': rmse, 'mae': mae, 'r2': r2, 'mse': mse}
 

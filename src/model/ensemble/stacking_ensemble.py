@@ -76,7 +76,7 @@ class StackingEnsemble(BaseEnsemble):
 
         # Train meta-model on validation meta-features
         self.meta_model.fit(meta_features, y_val)
-        
+
         print(f'Meta-model trained on {len(meta_features)} validation samples')
 
         # Print model insights
