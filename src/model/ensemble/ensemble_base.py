@@ -39,8 +39,11 @@ class BaseEnsemble(ABC):
     def evaluate(self, y_true, y_pred, scaler_y=None):
         """Evaluate ensemble performance using robust metrics."""
         if scaler_y is not None:
-            y_true = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
-            y_pred = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
+            # Convert from standardized log-space to price-space
+            y_true_log = scaler_y.inverse_transform(y_true.reshape(-1, 1)).flatten()
+            y_pred_log = scaler_y.inverse_transform(y_pred.reshape(-1, 1)).flatten()
+            y_true = np.expm1(y_true_log)
+            y_pred = np.expm1(y_pred_log)
 
         # Use robust metric calculations
         rmse = calculate_rmse(y_true, y_pred)

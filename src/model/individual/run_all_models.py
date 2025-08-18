@@ -499,10 +499,11 @@ def run_all_models(
             training_time = end_time - start_time
 
             if model is not None and results is not None:
-                # Calculate additional metrics
+                # Calculate additional metrics in price-space with proper MASE reference
                 actual = results['actual']
                 predicted = results['predictions']
-                mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted)
+                y_train_for_mase = results.get('y_train_original')
+                mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted, y_train_for_mase)
 
                 # Store results
                 all_results[model_name.lower()] = {

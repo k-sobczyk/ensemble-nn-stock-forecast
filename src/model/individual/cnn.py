@@ -1,6 +1,7 @@
 import os
 import warnings
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -310,6 +311,9 @@ def main(
     # Final evaluation
     print('\nFinal evaluation:')
     results = evaluate_model(model, X_test, y_test, scaler_y, model_type='cnn', model_name='CNN')
+    # Attach training target history in price-space for consistent MASE
+    y_train_log = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
+    results['y_train_original'] = np.expm1(y_train_log)
 
     # Add training losses to results for use by run_all_models.py
     results['train_losses'] = train_losses

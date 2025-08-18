@@ -252,9 +252,13 @@ def evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name
         with torch.no_grad():
             test_predictions = model(torch.FloatTensor(X_test).to(device)).detach().cpu().numpy()
 
-    # Inverse transform predictions and targets
-    y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
-    predictions_original = scaler_y.inverse_transform(test_predictions).flatten()
+    # Inverse transform predictions and targets from standardized log-space to log-space
+    y_test_log = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
+    predictions_log = scaler_y.inverse_transform(test_predictions).flatten()
+
+    # Convert from log-space to price-space for consistent evaluation
+    y_test_original = np.expm1(y_test_log)
+    predictions_original = np.expm1(predictions_log)
 
     # Calculate metrics
     mse = mean_squared_error(y_test_original, predictions_original)
@@ -267,7 +271,13 @@ def evaluate_model(model, X_test, y_test, scaler_y, model_type='rnn', model_name
     print(f'MAE: {mae:.4f}')
     print(f'R² Score: {r2:.4f}')
 
-    return {'rmse': rmse, 'mae': mae, 'r2': r2, 'predictions': predictions_original, 'actual': y_test_original}
+    return {
+        'rmse': rmse,
+        'mae': mae,
+        'r2': r2,
+        'predictions': predictions_original,
+        'actual': y_test_original,
+    }
 
 
 def create_data_loaders(X_train, y_train, X_test, y_test, batch_size=32, model_type='rnn'):
@@ -295,8 +305,18 @@ def plot_and_save_loss(train_losses, test_losses, out_path, model_name='Model'):
     plt.close()
 
 
-def calculate_additional_metrics(actual, predicted):
-    """Calculate MAPE and MASE metrics using standardized functions."""
+def calculate_additional_metrics(actual, predicted, y_train_for_mase=None):
+    """Calculate additional metrics in price-space.
+
+    Parameters
+    ----------
+    actual : np.ndarray
+        True values in price-space.
+    predicted : np.ndarray
+        Predicted values in price-space.
+    y_train_for_mase : np.ndarray | None
+        Training target history in price-space to compute MASE properly. If None, MASE will be set to NaN.
+    """
     # MAPE - Mean Absolute Percentage Error (traditional)
     try:
         mape = calculate_mape(actual, predicted)
@@ -318,10 +338,13 @@ def calculate_additional_metrics(actual, predicted):
         print(f'Warning: Could not calculate Log-scale MAPE: {e}')
         mape_log = np.nan
 
-    # MASE - Mean Absolute Scaled Error
-    # For MASE, we use actual values as training data for naive forecast
+    # MASE - Mean Absolute Scaled Error (requires training history in price-space)
     try:
-        mase = calculate_mase(actual, predicted, actual)
+        if y_train_for_mase is None:
+            print('Warning: y_train_for_mase not provided; setting MASE to NaN for consistency')
+            mase = np.nan
+        else:
+            mase = calculate_mase(actual, predicted, y_train_for_mase)
     except Exception as e:
         print(f'Warning: Could not calculate MASE: {e}')
         mase = np.nan
@@ -336,10 +359,11 @@ def save_individual_model_results(
     model_dir = os.path.join(results_dir, f'{model_name.lower()}_results')
     os.makedirs(model_dir, exist_ok=True)
 
-    # Calculate additional metrics
+    # Calculate additional metrics in price-space with proper MASE reference
     actual = results['actual']
     predicted = results['predictions']
-    mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted)
+    y_train_for_mase = results.get('y_train_original')
+    mape, mase, smape, mape_log = calculate_additional_metrics(actual, predicted, y_train_for_mase)
 
     # Create comprehensive results dictionary
     comprehensive_results = {

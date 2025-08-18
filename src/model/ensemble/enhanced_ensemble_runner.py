@@ -84,8 +84,9 @@ class EnhancedEnsembleRunner:
 
         self.input_size = len(self.feature_cols)
 
-        # Store original training data for MASE calculations
-        self.y_train_original = self.scaler_y.inverse_transform(self.y_train.reshape(-1, 1)).flatten()
+        # Store original training data for MASE calculations (convert to price-space)
+        y_train_log = self.scaler_y.inverse_transform(self.y_train.reshape(-1, 1)).flatten()
+        self.y_train_original = np.expm1(y_train_log)
         self.sequence_length_used = self.X_train.shape[1]
 
         print(f'Training set: {self.X_train.shape}')
@@ -162,9 +163,11 @@ class EnhancedEnsembleRunner:
                 # Evaluate with base metrics
                 metrics = ensemble.evaluate(self.y_test, predictions, self.scaler_y)
 
-                # Calculate additional metrics
-                actual = self.scaler_y.inverse_transform(self.y_test.reshape(-1, 1)).flatten()
-                predicted = self.scaler_y.inverse_transform(predictions.reshape(-1, 1)).flatten()
+                # Calculate additional metrics (convert to price-space first)
+                y_test_log = self.scaler_y.inverse_transform(self.y_test.reshape(-1, 1)).flatten()
+                pred_log = self.scaler_y.inverse_transform(predictions.reshape(-1, 1)).flatten()
+                actual = np.expm1(y_test_log)
+                predicted = np.expm1(pred_log)
                 mape, mase, smape, mape_log = self.calculate_additional_metrics(actual, predicted)
 
                 training_time = time.time() - start_time
